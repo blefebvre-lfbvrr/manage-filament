@@ -100,6 +100,8 @@ export type PrintStatus = z.infer<typeof printStatus>;
 export const filamentUsage = z.object({
   spoolId: z.string().nullable(),
   grams: z.number().nonnegative(),
+  /** Grammes prévus par le slicer (avant prorata d'une impression ratée). */
+  plannedG: optNum,
   lengthM: optNum,
   /** main = bobine principale, relay = relais auto-refill de l'AMS. */
   role: z.enum(['main', 'relay']).default('main'),
@@ -129,6 +131,8 @@ export const printJobSchema = baseEntity.extend({
   legacyRow: optNum,
   needsReview: z.boolean().optional(),
   reviewNote: optStr,
+  /** La consommation de cette impression est actuellement déduite du stock. */
+  stockApplied: z.boolean().optional(),
   custom: customValues.default({}),
 });
 export type PrintJob = z.infer<typeof printJobSchema>;
