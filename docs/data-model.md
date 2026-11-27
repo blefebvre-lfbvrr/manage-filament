@@ -53,7 +53,8 @@ Une impression contient :
 - `name`, `date`, `durationMin`, `projectId`, `plate` ;
 - `status` : `planned`, `success`, `failed` ou `cancelled` ;
 - `failedAtPercent`, `estimatedG` (poids du slicer) ;
-- `usages[]` : `{ spoolId, grams, lengthM, role: main | relay, amsSlot, slicerType, slicerColor }` ;
+- `usages[]` : `{ spoolId, grams, plannedG, lengthM, role: main | relay, amsSlot, slicerType, slicerColor }`. `grams` est la quantité déduite ; `plannedG` la quantité prévue, si l’impression a raté à X % ;
+- `stockApplied` : vrai si la consommation est actuellement déduite du stock ;
 - `energyKwh`, `sourceFileId`, `photoIds`, `notes`, `custom` ;
 - `legacyRow`, `needsReview` et `reviewNote` pour l’import.
 

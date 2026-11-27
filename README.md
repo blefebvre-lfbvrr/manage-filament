@@ -1,7 +1,7 @@
 # FilaTrack
 
 **Gestion de stock de filaments pour imprimante Bambu Lab A1 Combo (AMS lite).**
-FilaTrack remplace un fichier Excel de suivi : inventaire des bobines, restant de chaque bobine, journal de chaque modification, import/export Excel. Il est conçu pour être utilisé sur le téléphone à côté de l’imprimante comme sur l’ordinateur.
+FilaTrack remplace un fichier Excel de suivi : inventaire des bobines, impressions et déductions automatiques (import `.3mf` / `.gcode`), mode pesée, vue AMS lite, journal de chaque modification, import/export Excel. Il est conçu pour être utilisé sur le téléphone à côté de l’imprimante comme sur l’ordinateur.
 
 - 🔒 **100 % local** : les données restent dans le navigateur (IndexedDB). Rien n’est envoyé à un serveur.
 - 📴 **Fonctionne hors ligne** une fois chargé ; la PWA installable complète arrive en phase 5.
@@ -19,7 +19,7 @@ FilaTrack remplace un fichier Excel de suivi : inventaire des bobines, restant d
 
 _Captures réalisées avec les données de démonstration._
 
-## Fonctionnalités disponibles (phase 1)
+## Fonctionnalités disponibles
 
 **Inventaire**
 
@@ -40,6 +40,21 @@ _Captures réalisées avec les données de démonstration._
   - annulation de n’importe quel mouvement, qui ajoute un mouvement inverse ;
   - liste des impressions qui ont utilisé la bobine.
 
+**Impressions et consommation** (phase 2)
+
+- Saisie d’une impression avec plusieurs filaments (bobine principale et relais auto-refill). Les grammes sont déduits des bobines à l’enregistrement.
+- **Raccourci « ratée à X % »** : seule la part déposée est déduite.
+- **Import `.3mf` découpé (Bambu Studio) et `.gcode`** (Bambu Studio / OrcaSlicer), détaillé dans [docs/import-impressions.md](docs/import-impressions.md) :
+  - poids et longueur par filament, durée, plateaux ;
+  - **rattachement automatique** aux bobines (matériau, gamme, couleur, slot AMS) ;
+  - **vérification du stock** avant l’enregistrement.
+- **File d’attente** (« À imprimer ») : bouton _Imprimer_ pour lancer et déduire.
+- Annulation de toute déduction : depuis l’impression, depuis le journal, ou en supprimant l’impression (annulable).
+- Photo du résultat et fichier source conservables avec l’impression.
+- **Mode pesée** : poids brut sur la balance − tare = restant réel, avec un historique des pesées. La page _Pesée_ permet d’enchaîner les bobines à l’atelier.
+- **Vue AMS lite** : 4 slots et le support externe. Glisser-déposer, ou toucher la bobine puis le slot, ou menu _Placer_ (au clavier).
+- **Journal global** des mouvements, avec filtres et annulation.
+
 **Données**
 
 - **Import Excel**, détaillé dans [docs/import-excel.md](docs/import-excel.md) :
@@ -56,7 +71,6 @@ _Captures réalisées avec les données de démonstration._
 - **Sauvegarde et restauration** JSON en un clic, avec un rappel de sauvegarde paramétrable. La restauration peut remplacer les données ou fusionner avec elles.
 - **Données de démonstration** dans une base séparée : les activer ne touche pas aux vraies données.
 - Catalogue modifiable : marques, gammes, couleurs (code hex et référence), tares, prix, températures, lien vers la fiche produit. Il est prérempli avec les gammes Bambu Lab courantes, mais ces valeurs sont **indicatives et à vérifier**.
-- Historique des impressions et file « à imprimer » importés de l’Excel, en lecture seule pour l’instant.
 
 ## Installation (développement)
 
@@ -87,7 +101,9 @@ Le site s’ouvre sur http://localhost:5173/manage-filament/.
 1. **Premier lancement** : importe ton Excel (page _Import / Export_), ajoute tes bobines, ou active la démo (_Paramètres_).
 2. **Ajouter une bobine** : bouton _Ajouter_ (ou touche `n`), puis gamme et couleur. Pour une bobine déjà entamée, renseigne « Déjà consommé ».
 3. **Corriger un restant** : depuis la fiche (_Corriger le restant_) ou directement dans la colonne _Restant_ du tableau. Chaque correction est tracée et annulable.
-4. **AMS** : passe le statut à « Dans l’AMS » et choisis le slot. L’ancienne bobine du slot repasse automatiquement en « Ouverte ».
+4. **AMS** : page _AMS_ ; glisse une bobine sur un slot. L’ancienne bobine du slot repasse automatiquement en « Ouverte ».
+5. **Après une impression** : _Impressions → Importer .3mf / .gcode_. Vérifie les bobines proposées, puis _Enregistrer et déduire_. Sans fichier : _Nouvelle impression_.
+6. **Peser** : page _Pesée_ (ou bouton _Peser_ sur la fiche). Saisis le poids brut ; la tare de la bobine est soustraite.
 
 ## Importer le fichier Excel existant
 
@@ -117,12 +133,7 @@ Le dossier [`bridge/`](bridge/README.md) contiendra un petit script Node.js loca
 ## Feuille de route
 
 - [x] **Phase 1 — Socle** : modèle de données, inventaire, import/export Excel, sauvegarde, démo, déploiement.
-- [ ] **Phase 2 — Consommation** :
-  - saisie des impressions et file d’attente ;
-  - import `.3mf` (Bambu Studio) et `.gcode` ;
-  - déductions et annulation ;
-  - mode pesée avec tare et historique des pesées ;
-  - vue AMS en glisser-déposer.
+- [x] **Phase 2 — Consommation** : impressions et file d’attente, import `.3mf` / `.gcode`, déductions et annulation, mode pesée, vue AMS, journal global.
 - [ ] **Phase 3 — Dashboard et coûts** : KPI, graphiques avec les vraies couleurs, prévision de rupture, projets, électricité.
 - [ ] **Phase 4 — Alertes** : seuils par matériau ou couleur, liste de courses, rappels de séchage, vérification avant impression, notifications.
 - [ ] **Phase 5 — Étiquettes** : QR codes, planches A4, scan par caméra, PWA complète, plaquette STL.
@@ -133,6 +144,7 @@ Le dossier [`bridge/`](bridge/README.md) contiendra un petit script Node.js loca
 
 - [Modèle de données](docs/data-model.md)
 - [Import Excel : règles de correspondance](docs/import-excel.md)
+- [Import des impressions .3mf / .gcode](docs/import-impressions.md)
 - [CHANGELOG](CHANGELOG.md)
 
 ## Licence
