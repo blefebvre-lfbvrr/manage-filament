@@ -1,0 +1,33 @@
+# Dépendances et builds
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+.vite/
+
+# Données personnelles : ne jamais committer l'Excel d'origine ni les sauvegardes
+*.xlsx
+*.xls
+*.xlsm
+*.ods
+*.csv
+filatrack-backup*.json
+!tests/fixtures/**
+
+# Secrets / tokens
+.env
+.env.*
+!.env.example
+*.token
+bridge/config.json
+bridge/.env
+
+# Divers
+.DS_Store
+*.log
+.idea/
+.vscode/*
+!.vscode/extensions.json
+src/**/__local__*
