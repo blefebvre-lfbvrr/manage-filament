@@ -69,6 +69,19 @@ _Captures réalisées avec les données de démonstration._
 - **Projets** : budget avec jauge, coût cumulé, filament, impressions faites et à faire, reste à imprimer.
 - **Coût électrique** optionnel (puissance moyenne × durée × prix du kWh), ajouté au coût des impressions et des projets.
 
+**Alertes et réapprovisionnement** (phase 4)
+
+- **Centre de notifications** (cloche avec badge) : bobines bientôt vides ou à changer, stocks minimum, séchage, pesées recommandées, sauvegarde. Notifications du navigateur en option.
+- **Règles de stock minimum** par bobine, matériau, gamme, couleur ou gamme + couleur (« garder au moins 2 PLA Basic Noir »), en nombre de bobines ou en grammes.
+- **Rappels de séchage** pour les matériaux hygroscopiques ouverts (PETG, TPU, ABS…), avec bouton « Séchée aujourd’hui » et température conseillée.
+- **Liste de courses** :
+  - suggestions automatiques (bobines vides ou à changer sans rechange, minimums non respectés) ;
+  - prix d’après ton historique d’achat ;
+  - lien vers la fiche produit ;
+  - export texte et CSV ;
+  - bouton « Acheté » qui ajoute les bobines au stock.
+- **Vérification avant impression** : alerte de stock dans la saisie, l’import `.3mf` et la file d’attente.
+
 **Données**
 
 - **Import Excel**, détaillé dans [docs/import-excel.md](docs/import-excel.md) :
@@ -149,7 +162,7 @@ Le dossier [`bridge/`](bridge/README.md) contiendra un petit script Node.js loca
 - [x] **Phase 1 — Socle** : modèle de données, inventaire, import/export Excel, sauvegarde, démo, déploiement.
 - [x] **Phase 2 — Consommation** : impressions et file d’attente, import `.3mf` / `.gcode`, déductions et annulation, mode pesée, vue AMS, journal global.
 - [x] **Phase 3 — Dashboard et coûts** : KPI, graphiques avec les vraies couleurs, prévision de rupture, projets, électricité.
-- [ ] **Phase 4 — Alertes** : seuils par matériau ou couleur, liste de courses, rappels de séchage, vérification avant impression, notifications.
+- [x] **Phase 4 — Alertes** : seuils par matériau ou couleur, liste de courses, rappels de séchage, vérification avant impression, notifications.
 - [ ] **Phase 5 — Étiquettes** : QR codes, planches A4, scan par caméra, PWA complète, plaquette STL.
 - [ ] **Phase 6 — Personnalisation** : gestion des champs personnalisés, vues enregistrées, widgets, palette Ctrl+K, synchronisation GitHub.
 - [ ] **Phase 7 — Pont MQTT** (optionnel).

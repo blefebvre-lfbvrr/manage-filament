@@ -4,6 +4,24 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), ver
 
 ## [Non publié]
 
+## [0.4.0] — 2026-11-28 — Phase 4 : alertes et réapprovisionnement
+
+### Ajouté
+
+- Centre de notifications (badge, lecture, liens) et notifications navigateur optionnelles.
+- Règles de stock minimum (bobine, matériau, gamme, couleur, gamme + couleur ; bobines ou grammes).
+- Rappels de séchage des matériaux hygroscopiques ouverts, bouton « Séchée aujourd’hui ».
+- Liste de courses :
+  - suggestions automatiques, ajout manuel depuis le catalogue ;
+  - prix estimés, liens produit, export texte et CSV ;
+  - « Acheté » crée les bobines dans le stock.
+- File d’attente : badge « stock insuffisant » sur les impressions planifiées.
+- Paramètres : délai de séchage, inclusion des bobines « bientôt vides » dans les courses, notifications navigateur.
+
+### Modifié
+
+- Base de données en version 2 (nouvelle table `shoppingItems`), migration automatique depuis la version 1.
+
 ## [0.3.0] — 2026-11-27 — Phase 3 : tableau de bord et coûts
 
 ### Ajouté

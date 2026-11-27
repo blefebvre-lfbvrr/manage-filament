@@ -168,7 +168,7 @@ describe('liste de courses', () => {
     const l = itemToLine(item);
     expect(l).toMatchObject({ key: 'item:i1', reason: 'ajout manuel' });
     expect(shoppingTotal([l, { quantity: 1, unitPrice: null }])).toEqual({ total: 40, unknown: 1 });
-    const txt = shoppingText([l]).replace(/[  ]/g, ' ');
+    const txt = shoppingText([l]).replace(/[\u00a0\u202f]/g, ' ');
     expect(txt).toContain('- 2 × PETG HF Noir (~20,00 €) — https://x');
     expect(txt).toContain('Total estimé : 40,00 €');
   });

@@ -77,7 +77,7 @@ Une impression contient :
 
 ## Migrations
 
-`DB_VERSION` (dans `src/db/db.ts`) est la version courante. Pour faire évoluer le schéma :
+`DB_VERSION` (dans `src/db/db.ts`) est la version courante (2 : ajout de `shoppingItems`, voir `src/db/migration.test.ts`). Pour faire évoluer le schéma :
 
 1. **Ne jamais modifier** un bloc `this.version(n)` existant.
 2. Ajouter `this.version(n + 1).stores({...})`, avec si besoin `.upgrade(tx => …)` pour transformer les données existantes.
