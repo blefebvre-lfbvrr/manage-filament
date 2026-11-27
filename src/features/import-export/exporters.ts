@@ -18,7 +18,7 @@ async function loadAll() {
   const labels = Object.fromEntries(defs.filter((d) => d.entity === 'spool').map((d) => [d.key, d.label]));
   return {
     spools: spoolRows(spools, settings, labels),
-    prints: printRows(prints, spools, projects),
+    prints: printRows(prints, spools, projects, settings),
     movements: movementRows(movements, spools),
     projects: projectRows(projects),
   };

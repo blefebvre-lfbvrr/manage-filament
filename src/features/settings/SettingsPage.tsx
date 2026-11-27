@@ -165,7 +165,7 @@ export function SettingsPage() {
           <CardHeader>
             <CardTitle>Électricité</CardTitle>
             <CardDescription>
-              Pour le coût total des impressions (utilisé à partir de la phase 3).
+              Ajoute au coût de chaque impression : puissance moyenne × durée × prix du kWh.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-3">
@@ -200,6 +200,31 @@ export function SettingsPage() {
                   const v = num(e.target.value);
                   if (v !== null && !Number.isNaN(v))
                     void save({ electricity: { ...settings.electricity, pricePerKwh: v } });
+                }}
+              />
+            </Field>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Prévisions</CardTitle>
+            <CardDescription>
+              La date de rupture d’une bobine est estimée d’après sa consommation moyenne récente.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Field label="Fenêtre de calcul (jours)" htmlFor="fcw">
+              <Input
+                id="fcw"
+                type="number"
+                min={7}
+                max={365}
+                defaultValue={settings.forecastWindowDays}
+                key={`f${settings.forecastWindowDays}`}
+                onBlur={(e) => {
+                  const v = Math.max(7, Math.min(365, Math.floor(Number(e.target.value) || 60)));
+                  void save({ forecastWindowDays: v });
                 }}
               />
             </Field>

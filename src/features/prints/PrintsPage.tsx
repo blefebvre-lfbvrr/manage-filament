@@ -28,7 +28,8 @@ import {
 import { Input, NativeSelect } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { deletePrint, restorePrint, savePrint, unapplyPrintStock, type PrintInput } from '@/db/repo';
-import { PRINT_STATUS_LABELS, printCost } from '@/lib/export';
+import { PRINT_STATUS_LABELS } from '@/lib/export';
+import { printCosts } from '@/lib/stats';
 import { formatDate, formatGrams, formatMoney } from '@/lib/format';
 import { formatDuration, totalGrams } from '@/lib/prints';
 import type { PrintJob, Spool } from '@/lib/schemas';
@@ -81,7 +82,8 @@ export function PrintsPage() {
     0,
   );
   const plannedG = planned.reduce((a, p) => a + (p.estimatedG ?? totalGrams(p.usages)), 0);
-  const cost = done.reduce((a, p) => a + printCost(p, byId), 0);
+  const costOf = (p: PrintJob) => printCosts(p, byId, settings);
+  const cost = done.reduce((a, p) => a + (p.stockApplied === false ? 0 : costOf(p).total), 0);
 
   const strip = (p: PrintJob): PrintInput => {
     const { id: _i, createdAt: _c, updatedAt: _u, deletedAt: _d, stockApplied: _s, ...rest } = p;
@@ -132,7 +134,10 @@ export function PrintsPage() {
       <section aria-label="Résumé" className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Impressions" value={String(done.length)} />
         <Stat label="Filament déduit" value={formatGrams(consumed)} />
-        <Stat label="Coût matière" value={formatMoney(cost, settings.currency)} />
+        <Stat
+          label={settings.electricity.enabled ? 'Coût (matière + élec.)' : 'Coût matière'}
+          value={formatMoney(cost, settings.currency)}
+        />
         <Stat
           label="Reste à imprimer"
           value={formatGrams(plannedG)}
@@ -183,6 +188,7 @@ export function PrintsPage() {
                       byId={byId}
                       projectName={projectName(p.projectId)}
                       currency={settings.currency}
+                      costOf={costOf}
                       dateFormat={settings.dateFormat}
                       actions={actions}
                       onDelete={() => setToDelete(p)}
@@ -239,6 +245,7 @@ function PrintItem({
   byId,
   projectName,
   currency,
+  costOf,
   dateFormat,
   actions,
   onDelete,
@@ -247,6 +254,7 @@ function PrintItem({
   byId: Map<string, Spool>;
   projectName: string;
   currency: string;
+  costOf: (p: PrintJob) => { material: number; energy: number; total: number };
   dateFormat: string;
   actions: Record<
     'edit' | 'launch' | 'duplicate' | 'unapply' | 'reapply',
@@ -317,7 +325,7 @@ function PrintItem({
         </span>
         {p.status !== 'planned' && (
           <span className="text-muted-foreground text-sm tabular-nums">
-            {formatMoney(printCost(p, byId), currency)}
+            {formatMoney(costOf(p).total, currency)}
           </span>
         )}
         {p.status === 'planned' && (

@@ -22,6 +22,12 @@ const WeighPage = lazy(() => import('@/features/weighing/WeighPage').then((m) =>
 const JournalPage = lazy(() =>
   import('@/features/journal/JournalPage').then((m) => ({ default: m.JournalPage })),
 );
+const DashboardPage = lazy(() =>
+  import('@/features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })),
+);
+const ProjectsPage = lazy(() =>
+  import('@/features/projects/ProjectsPage').then((m) => ({ default: m.ProjectsPage })),
+);
 const SettingsPage = lazy(() =>
   import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 );
@@ -42,6 +48,8 @@ const router = createHashRouter([
       { path: 'ams', element: page(<AmsPage />) },
       { path: 'weigh', element: page(<WeighPage />) },
       { path: 'journal', element: page(<JournalPage />) },
+      { path: 'dashboard', element: page(<DashboardPage />) },
+      { path: 'projects', element: page(<ProjectsPage />) },
       { path: 'catalog', element: page(<CatalogPage />) },
       { path: 'data', element: page(<ImportExportPage />) },
       { path: 'settings', element: page(<SettingsPage />) },
