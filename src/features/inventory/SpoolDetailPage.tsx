@@ -1,4 +1,7 @@
-import { AlertTriangle, Archive, ArrowLeft, Copy, Pencil, Scale, Trash2, Undo2 } from 'lucide-react';
+import { AlertTriangle, Archive, ArrowLeft, Copy, Pencil, PenLine, Scale, Trash2, Undo2 } from 'lucide-react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { getDb } from '@/db/db';
+import { WeighDialog } from '../weighing/WeighDialog';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
@@ -44,6 +47,17 @@ export function SpoolDetailPage() {
   const navigate = useNavigate();
   const [edit, setEdit] = useState(false);
   const [correct, setCorrect] = useState(false);
+  const [weigh, setWeigh] = useState(false);
+  const weighings = useLiveQuery(
+    async () =>
+      id
+        ? (await getDb().weighings.where('spoolId').equals(id).toArray()).sort((a, b) =>
+            b.at.localeCompare(a.at),
+          )
+        : [],
+    [id],
+    [],
+  );
   const [target, setTarget] = useState('');
   const [note, setNote] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -166,15 +180,24 @@ export function SpoolDetailPage() {
           <StockBar spool={spool} settings={settings} className="w-full sm:w-56" />
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
+          <Button onClick={() => setWeigh(true)}>
+            <Scale aria-hidden /> Peser
+          </Button>
           <Button
+            variant="outline"
             onClick={() => {
               setTarget(String(spool.remainingG));
               setNote('');
               setCorrect(true);
             }}
           >
-            <Scale aria-hidden /> Corriger le restant
+            <PenLine aria-hidden /> Corriger le restant
           </Button>
+          {spool.status !== 'ams' && (
+            <Button variant="outline" asChild>
+              <Link to="/ams">Mettre dans l’AMS</Link>
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setEdit(true)}>
             <Pencil aria-hidden /> Modifier
           </Button>
@@ -298,6 +321,30 @@ export function SpoolDetailPage() {
         </Card>
       </div>
 
+      {weighings.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Pesées ({weighings.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="flex flex-col divide-y text-sm">
+              {weighings.map((w) => (
+                <li key={w.id} className="flex flex-wrap justify-between gap-2 py-1.5">
+                  <span className="text-muted-foreground tabular-nums">
+                    {formatDateTime(w.at, settings.dateFormat)}
+                  </span>
+                  <span className="tabular-nums">
+                    {formatGrams(w.grossG)} brut − {formatGrams(w.tareG)} tare ={' '}
+                    <strong>{formatGrams(w.netG)}</strong>
+                  </span>
+                  {w.note && <span className="text-muted-foreground w-full text-xs">{w.note}</span>}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Impressions avec cette bobine ({usedIn.length})</CardTitle>
@@ -331,6 +378,7 @@ export function SpoolDetailPage() {
       </Card>
 
       <SpoolFormDialog open={edit} onOpenChange={setEdit} spool={spool} />
+      <WeighDialog spool={spool} open={weigh} onOpenChange={setWeigh} />
 
       <Dialog open={correct} onOpenChange={setCorrect}>
         <DialogContent>
@@ -338,7 +386,7 @@ export function SpoolDetailPage() {
             <DialogTitle>Corriger le restant de {spool.code}</DialogTitle>
             <DialogDescription>
               Indique le poids net de filament restant. Un mouvement « correction » annulable est ajouté au
-              journal. (Le mode pesée avec tare arrive en phase 2.)
+              journal. Pour une mesure sur balance, utilise plutôt « Peser ».
             </DialogDescription>
           </DialogHeader>
           <form

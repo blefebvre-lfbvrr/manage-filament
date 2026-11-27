@@ -334,7 +334,7 @@ export function ExcelImportWizard() {
                   <p className="text-muted-foreground mt-1 text-sm">{s.reason}</p>
                 )}
                 {(s.role === 'spools' || s.role === 'prints') && s.table && (
-                  <div className="mt-3 overflow-x-auto">
+                  <div className="relative mt-3 overflow-x-auto">
                     <p className="text-muted-foreground mb-2 text-xs">
                       En-têtes ligne {s.table.headerRowIndex + 1} ·{' '}
                       {s.table.records.filter((r) => r.cells.some((c) => !isBlank(c))).length} lignes non
@@ -532,7 +532,7 @@ export function ExcelImportWizard() {
             </section>
 
             {plan.spools.length > 0 && (
-              <section aria-label="Aperçu des bobines" className="overflow-x-auto">
+              <section aria-label="Aperçu des bobines" className="relative overflow-x-auto">
                 <h3 className="mb-2 font-semibold">Aperçu des bobines</h3>
                 <table className="w-full text-sm">
                   <thead>

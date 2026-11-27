@@ -1,4 +1,23 @@
-import { Boxes, Database, Download, FlaskConical, Library, Package, Printer, Settings } from 'lucide-react';
+import {
+  Boxes,
+  Database,
+  Download,
+  FlaskConical,
+  History,
+  Library,
+  Menu,
+  Package,
+  Printer,
+  Scale,
+  Settings,
+  SquareStack,
+} from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { NavLink, Outlet, useNavigate } from 'react-router';
 import { Toaster } from 'sonner';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -11,8 +30,11 @@ import { useEffect } from 'react';
 import { applyTheme } from './theme';
 
 const NAV = [
-  { to: '/', label: 'Inventaire', icon: Package, end: true },
-  { to: '/prints', label: 'Impressions', icon: Printer },
+  { to: '/', label: 'Inventaire', icon: Package, end: true, mobile: true },
+  { to: '/ams', label: 'AMS', icon: SquareStack, mobile: true },
+  { to: '/prints', label: 'Impressions', icon: Printer, mobile: true },
+  { to: '/weigh', label: 'Pesée', icon: Scale, mobile: true },
+  { to: '/journal', label: 'Journal', icon: History },
   { to: '/catalog', label: 'Catalogue', icon: Library },
   { to: '/data', label: 'Import / Export', icon: Database },
   { to: '/settings', label: 'Paramètres', icon: Settings },
@@ -116,7 +138,7 @@ export function Layout() {
         aria-label="Navigation principale"
         className="bg-card fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
       >
-        {NAV.map((n) => (
+        {NAV.filter((n) => n.mobile).map((n) => (
           <NavLink
             key={n.to}
             to={n.to}
@@ -129,9 +151,22 @@ export function Layout() {
             }
           >
             <n.icon className="size-5" aria-hidden />
-            <span className="truncate">{n.label.split(' ')[0]}</span>
+            <span className="truncate">{n.label}</span>
           </NavLink>
         ))}
+        <DropdownMenu>
+          <DropdownMenuTrigger className="text-muted-foreground flex flex-col items-center gap-0.5 px-1 py-2 text-[11px] font-medium">
+            <Menu className="size-5" aria-hidden />
+            <span>Plus</span>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" side="top">
+            {NAV.filter((n) => !n.mobile).map((n) => (
+              <DropdownMenuItem key={n.to} onSelect={() => navigate(n.to)}>
+                <n.icon aria-hidden /> {n.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </nav>
       <Toaster richColors position="top-center" closeButton theme={settings.theme} />
     </div>

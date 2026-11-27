@@ -1,3 +1,4 @@
+import { strToU8, zipSync } from 'fflate';
 /**
  * Classeur de test reproduisant la STRUCTURE de l'Excel « Suivi filament » (feuilles,
  * en-têtes, formules, bloc de seuils, liste masquée) avec des données fictives.
@@ -237,4 +238,31 @@ export function legacyWorkbook(): Uint8Array {
     { name: 'Mode d’emploi', rows: help },
     { name: 'Dropdown options', rows: lists, hidden: true },
   ]);
+}
+
+/** .3mf « découpé » au format Bambu Studio (slice_info.config + project_settings.config). */
+export function sliced3mf(): Uint8Array {
+  const sliceInfo = `<?xml version="1.0" encoding="UTF-8"?>
+<config>
+  <header><header_item key="X-BBL-Client-Version" value="02.03.00.70"/></header>
+  <plate>
+    <metadata key="index" value="1"/>
+    <metadata key="prediction" value="5025"/>
+    <metadata key="weight" value="56.31"/>
+    <filament id="1" tray_info_idx="GFA00" type="PLA" color="#000000" used_m="14.10" used_g="42.10" />
+    <filament id="3" tray_info_idx="GFA00" type="PLA" color="#C12E1F" used_m="4.76" used_g="14.21" />
+  </plate>
+</config>`;
+  const project = JSON.stringify({
+    filament_settings_id: ['Bambu PLA Basic @BBL A1', 'Bambu PLA Basic @BBL A1', 'Bambu PLA Basic @BBL A1'],
+    filament_type: ['PLA', 'PLA', 'PLA'],
+  });
+  const model =
+    '<config><plate><metadata key="plater_id" value="1"/><metadata key="plater_name" value="Boîtes"/></plate></config>';
+  return zipSync({
+    '3D/3dmodel.model': strToU8('<model/>'),
+    'Metadata/slice_info.config': strToU8(sliceInfo),
+    'Metadata/project_settings.config': strToU8(project),
+    'Metadata/model_settings.config': strToU8(model),
+  });
 }

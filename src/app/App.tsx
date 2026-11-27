@@ -17,6 +17,11 @@ const CatalogPage = lazy(() =>
 const ImportExportPage = lazy(() =>
   import('@/features/import-export/ImportExportPage').then((m) => ({ default: m.ImportExportPage })),
 );
+const AmsPage = lazy(() => import('@/features/ams/AmsPage').then((m) => ({ default: m.AmsPage })));
+const WeighPage = lazy(() => import('@/features/weighing/WeighPage').then((m) => ({ default: m.WeighPage })));
+const JournalPage = lazy(() =>
+  import('@/features/journal/JournalPage').then((m) => ({ default: m.JournalPage })),
+);
 const SettingsPage = lazy(() =>
   import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 );
@@ -34,6 +39,9 @@ const router = createHashRouter([
       { index: true, element: <InventoryPage /> },
       { path: 'spools/:id', element: page(<SpoolDetailPage />) },
       { path: 'prints', element: page(<PrintsPage />) },
+      { path: 'ams', element: page(<AmsPage />) },
+      { path: 'weigh', element: page(<WeighPage />) },
+      { path: 'journal', element: page(<JournalPage />) },
       { path: 'catalog', element: page(<CatalogPage />) },
       { path: 'data', element: page(<ImportExportPage />) },
       { path: 'settings', element: page(<SettingsPage />) },
