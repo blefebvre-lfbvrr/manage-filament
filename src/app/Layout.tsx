@@ -1,4 +1,5 @@
 import {
+  BellRing,
   Boxes,
   Database,
   Download,
@@ -12,8 +13,10 @@ import {
   Printer,
   Scale,
   Settings,
+  ShoppingCart,
   SquareStack,
 } from 'lucide-react';
+import { NotificationBell } from './NotificationBell';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +41,8 @@ const NAV = [
   { to: '/weigh', label: 'Pesée', icon: Scale, mobile: true },
   { to: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
   { to: '/projects', label: 'Projets', icon: FolderKanban },
+  { to: '/alerts', label: 'Alertes', icon: BellRing },
+  { to: '/shopping', label: 'Liste de courses', icon: ShoppingCart },
   { to: '/journal', label: 'Journal', icon: History },
   { to: '/catalog', label: 'Catalogue', icon: Library },
   { to: '/data', label: 'Import / Export', icon: Database },
@@ -63,9 +68,10 @@ export function Layout() {
         Aller au contenu
       </a>
       <aside className="bg-card hidden w-60 shrink-0 flex-col border-r md:flex">
-        <div className="flex items-center gap-2 px-5 py-5">
+        <div className="flex items-center gap-2 py-4 pr-2 pl-5">
           <Boxes className="text-primary size-6" aria-hidden />
           <span className="text-lg font-bold">FilaTrack</span>
+          <NotificationBell className="ml-auto" />
         </div>
         <nav aria-label="Navigation principale" className="flex flex-1 flex-col gap-1 px-3">
           {NAV.map((n) => (
@@ -91,9 +97,10 @@ export function Layout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col pb-20 md:pb-0">
-        <header className="bg-background/95 sticky top-0 z-30 flex items-center gap-2 border-b px-4 py-3 backdrop-blur md:hidden">
+        <header className="bg-background/95 sticky top-0 z-30 flex items-center gap-2 border-b px-4 py-1.5 backdrop-blur md:hidden">
           <Boxes className="text-primary size-5" aria-hidden />
           <span className="font-bold">FilaTrack</span>
+          <NotificationBell className="ml-auto" />
         </header>
         {demo && (
           <div

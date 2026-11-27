@@ -1,4 +1,15 @@
-import { AlertTriangle, Archive, ArrowLeft, Copy, Pencil, PenLine, Scale, Trash2, Undo2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  Archive,
+  ArrowLeft,
+  Copy,
+  Droplets,
+  Pencil,
+  PenLine,
+  Scale,
+  Trash2,
+  Undo2,
+} from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getDb } from '@/db/db';
 import { WeighDialog } from '../weighing/WeighDialog';
@@ -21,6 +32,7 @@ import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/label';
 import {
   duplicateSpool,
+  markDried,
   restoreSpools,
   setRemaining,
   softDeleteSpools,
@@ -31,7 +43,7 @@ import { PRINT_STATUS_LABELS, spoolCost } from '@/lib/export';
 import { locationOf } from '@/lib/filters';
 import { formatCostPerGram, formatDate, formatDateTime, formatGrams, formatMoney } from '@/lib/format';
 import { MOVEMENT_LABELS, withRunningBalance } from '@/lib/movements';
-import { costPerGram, effectiveThresholds, remainingValue } from '@/lib/spool';
+import { costPerGram, effectiveThresholds, isHygroscopic, remainingValue } from '@/lib/spool';
 import { spoolLevel as levelOf } from '@/lib/spool';
 import { ColorSwatch, LevelBadge, StatusBadge, StockBar } from './SpoolBits';
 import { SpoolFormDialog } from './SpoolFormDialog';
@@ -193,6 +205,17 @@ export function SpoolDetailPage() {
           >
             <PenLine aria-hidden /> Corriger le restant
           </Button>
+          {isHygroscopic(spool.material) && spool.status !== 'sealed' && (
+            <Button
+              variant="outline"
+              onClick={async () => {
+                await markDried(spool.id);
+                toast.success('Séchage enregistré.');
+              }}
+            >
+              <Droplets aria-hidden /> Séchée aujourd’hui
+            </Button>
+          )}
           {spool.status !== 'ams' && (
             <Button variant="outline" asChild>
               <Link to="/ams">Mettre dans l’AMS</Link>

@@ -31,7 +31,7 @@ import { deletePrint, restorePrint, savePrint, unapplyPrintStock, type PrintInpu
 import { PRINT_STATUS_LABELS } from '@/lib/export';
 import { printCosts } from '@/lib/stats';
 import { formatDate, formatGrams, formatMoney } from '@/lib/format';
-import { formatDuration, totalGrams } from '@/lib/prints';
+import { checkStock, formatDuration, totalGrams } from '@/lib/prints';
 import type { PrintJob, Spool } from '@/lib/schemas';
 import { matchesQuery } from '@/lib/text';
 import { ColorSwatch } from '../inventory/SpoolBits';
@@ -265,6 +265,9 @@ function PrintItem({
   const grams = totalGrams(p.usages);
   const notDeducted =
     p.status !== 'planned' && p.stockApplied === false && p.usages.some((u) => u.spoolId && u.grams > 0);
+  // Vérification avant impression : les bobines prévues pour une impression planifiée suffisent-elles ?
+  const short =
+    p.status === 'planned' ? checkStock(p.usages, [...byId.values()]).filter((c) => c.shortG > 0) : [];
   return (
     <Card className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:gap-4">
       <div className="min-w-0 flex-1">
@@ -275,6 +278,15 @@ function PrintItem({
             {p.status === 'failed' && p.failedAtPercent != null ? ` à ${p.failedAtPercent} %` : ''}
           </Badge>
           {notDeducted && <Badge tone="muted">Non déduite</Badge>}
+          {short.length > 0 && (
+            <Badge
+              tone="warn"
+              title={short.map((c) => `${c.code} : il manque ${formatGrams(c.shortG)}`).join(' · ')}
+            >
+              <AlertTriangle className="size-3" aria-hidden /> Stock insuffisant (
+              {short.map((c) => `${c.code} −${formatGrams(c.shortG)}`).join(', ')})
+            </Badge>
+          )}
           {p.needsReview && (
             <Badge tone="warn" title={p.reviewNote ?? undefined}>
               <AlertTriangle className="size-3" aria-hidden /> À vérifier

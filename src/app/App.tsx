@@ -28,6 +28,12 @@ const DashboardPage = lazy(() =>
 const ProjectsPage = lazy(() =>
   import('@/features/projects/ProjectsPage').then((m) => ({ default: m.ProjectsPage })),
 );
+const AlertsPage = lazy(() =>
+  import('@/features/alerts/AlertsPage').then((m) => ({ default: m.AlertsPage })),
+);
+const ShoppingPage = lazy(() =>
+  import('@/features/shopping/ShoppingPage').then((m) => ({ default: m.ShoppingPage })),
+);
 const SettingsPage = lazy(() =>
   import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 );
@@ -50,6 +56,8 @@ const router = createHashRouter([
       { path: 'journal', element: page(<JournalPage />) },
       { path: 'dashboard', element: page(<DashboardPage />) },
       { path: 'projects', element: page(<ProjectsPage />) },
+      { path: 'alerts', element: page(<AlertsPage />) },
+      { path: 'shopping', element: page(<ShoppingPage />) },
       { path: 'catalog', element: page(<CatalogPage />) },
       { path: 'data', element: page(<ImportExportPage />) },
       { path: 'settings', element: page(<SettingsPage />) },

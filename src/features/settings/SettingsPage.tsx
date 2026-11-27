@@ -208,6 +208,60 @@ export function SettingsPage() {
 
         <Card>
           <CardHeader>
+            <CardTitle>Alertes et notifications</CardTitle>
+            <CardDescription>
+              Les alertes apparaissent dans la cloche et sur la page Alertes. Les notifications du navigateur
+              sont facultatives.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <Field
+              label="Rappel de séchage (jours, 0 = désactivé)"
+              htmlFor="drying"
+              hint="PETG, TPU, ABS… ouverts sans séchage depuis ce nombre de jours"
+            >
+              <Input
+                id="drying"
+                type="number"
+                min={0}
+                defaultValue={settings.dryingReminderDays}
+                key={`d${settings.dryingReminderDays}`}
+                onBlur={(e) =>
+                  void save({ dryingReminderDays: Math.max(0, Math.floor(Number(e.target.value) || 0)) })
+                }
+              />
+            </Field>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="browser-notif"
+                checked={settings.browserNotifications}
+                onCheckedChange={async (v) => {
+                  if (v) {
+                    if (typeof Notification === 'undefined') {
+                      toast.error(
+                        'Ce navigateur ne gère pas les notifications. Sur iPhone, installe d’abord l’application sur l’écran d’accueil.',
+                      );
+                      return;
+                    }
+                    const perm =
+                      Notification.permission === 'granted'
+                        ? 'granted'
+                        : await Notification.requestPermission();
+                    if (perm !== 'granted') {
+                      toast.error('Notifications refusées par le navigateur.');
+                      return;
+                    }
+                  }
+                  void save({ browserNotifications: v });
+                }}
+              />
+              <Label htmlFor="browser-notif">Notifications du navigateur (alertes importantes)</Label>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Prévisions</CardTitle>
             <CardDescription>
               La date de rupture d’une bobine est estimée d’après sa consommation moyenne récente.
