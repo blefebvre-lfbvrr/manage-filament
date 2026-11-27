@@ -1,0 +1,47 @@
+import { lazy, Suspense, type ReactNode } from 'react';
+import { createHashRouter, RouterProvider } from 'react-router';
+import { InventoryPage } from '@/features/inventory/InventoryPage';
+import { Layout } from './Layout';
+import { NotFound } from './NotFound';
+
+// Pages secondaires chargées à la demande (SheetJS n'est téléchargé que pour l'import/export).
+const SpoolDetailPage = lazy(() =>
+  import('@/features/inventory/SpoolDetailPage').then((m) => ({ default: m.SpoolDetailPage })),
+);
+const PrintsPage = lazy(() =>
+  import('@/features/prints/PrintsPage').then((m) => ({ default: m.PrintsPage })),
+);
+const CatalogPage = lazy(() =>
+  import('@/features/catalog/CatalogPage').then((m) => ({ default: m.CatalogPage })),
+);
+const ImportExportPage = lazy(() =>
+  import('@/features/import-export/ImportExportPage').then((m) => ({ default: m.ImportExportPage })),
+);
+const SettingsPage = lazy(() =>
+  import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })),
+);
+
+const page = (node: ReactNode) => (
+  <Suspense fallback={<p className="text-muted-foreground">Chargement…</p>}>{node}</Suspense>
+);
+
+// Router en mode hash : fonctionne tel quel sur GitHub Pages (aucune réécriture d'URL côté serveur).
+const router = createHashRouter([
+  {
+    path: '/',
+    element: <Layout />,
+    children: [
+      { index: true, element: <InventoryPage /> },
+      { path: 'spools/:id', element: page(<SpoolDetailPage />) },
+      { path: 'prints', element: page(<PrintsPage />) },
+      { path: 'catalog', element: page(<CatalogPage />) },
+      { path: 'data', element: page(<ImportExportPage />) },
+      { path: 'settings', element: page(<SettingsPage />) },
+      { path: '*', element: <NotFound /> },
+    ],
+  },
+]);
+
+export function App() {
+  return <RouterProvider router={router} />;
+}
