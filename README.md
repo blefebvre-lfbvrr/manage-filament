@@ -55,6 +55,20 @@ _Captures réalisées avec les données de démonstration._
 - **Vue AMS lite** : 4 slots et le support externe. Glisser-déposer, ou toucher la bobine puis le slot, ou menu _Placer_ (au clavier).
 - **Journal global** des mouvements, avec filtres et annulation.
 
+**Tableau de bord et coûts** (phase 3)
+
+- Indicateurs : bobines et kg en stock, valeur du stock, consommation et dépenses de la période, coût moyen au kg, taux de réussite, bobines à surveiller.
+- Graphiques (chacun a aussi une vue tableau accessible) :
+  - consommation par jour, semaine ou mois ;
+  - stock par matériau et **par couleur, avec les vraies couleurs** ;
+  - dépenses par mois ;
+  - coût par projet ;
+  - filaments les plus utilisés.
+- **Prévision de rupture** par bobine, d’après la consommation moyenne récente (fenêtre réglable).
+- Sélecteur de période, filtres globaux (matériau, projet), widgets **réorganisables et masquables** (disposition enregistrée).
+- **Projets** : budget avec jauge, coût cumulé, filament, impressions faites et à faire, reste à imprimer.
+- **Coût électrique** optionnel (puissance moyenne × durée × prix du kWh), ajouté au coût des impressions et des projets.
+
 **Données**
 
 - **Import Excel**, détaillé dans [docs/import-excel.md](docs/import-excel.md) :
@@ -134,7 +148,7 @@ Le dossier [`bridge/`](bridge/README.md) contiendra un petit script Node.js loca
 
 - [x] **Phase 1 — Socle** : modèle de données, inventaire, import/export Excel, sauvegarde, démo, déploiement.
 - [x] **Phase 2 — Consommation** : impressions et file d’attente, import `.3mf` / `.gcode`, déductions et annulation, mode pesée, vue AMS, journal global.
-- [ ] **Phase 3 — Dashboard et coûts** : KPI, graphiques avec les vraies couleurs, prévision de rupture, projets, électricité.
+- [x] **Phase 3 — Dashboard et coûts** : KPI, graphiques avec les vraies couleurs, prévision de rupture, projets, électricité.
 - [ ] **Phase 4 — Alertes** : seuils par matériau ou couleur, liste de courses, rappels de séchage, vérification avant impression, notifications.
 - [ ] **Phase 5 — Étiquettes** : QR codes, planches A4, scan par caméra, PWA complète, plaquette STL.
 - [ ] **Phase 6 — Personnalisation** : gestion des champs personnalisés, vues enregistrées, widgets, palette Ctrl+K, synchronisation GitHub.

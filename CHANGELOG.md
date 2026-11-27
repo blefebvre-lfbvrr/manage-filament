@@ -4,6 +4,24 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), ver
 
 ## [Non publié]
 
+## [0.3.0] — 2026-11-27 — Phase 3 : tableau de bord et coûts
+
+### Ajouté
+
+- Tableau de bord :
+  - indicateurs clés et graphiques Recharts (consommation, stock par matériau, stock par couleur réelle, dépenses, coût par projet, top des filaments) ;
+  - vue tableau pour chaque graphique ;
+  - prévision de rupture et liste des bobines à surveiller.
+- Période, regroupement (jour / semaine / mois) et filtres globaux (matériau, projet).
+- Widgets réorganisables et masquables, disposition enregistrée dans les paramètres (incluse dans les sauvegardes).
+- Page Projets : budget, coût cumulé, avancement, impressions du projet.
+- Coût électrique optionnel dans le coût des impressions, des projets et de l’export Excel (colonnes matière / électricité / total).
+- Réglage de la fenêtre de calcul des prévisions.
+
+### Corrigé
+
+- Affichage « -0 g » / « -0 % » pour les bobines vides.
+
 ## [0.2.0] — 2026-11-27 — Phase 2 : consommation
 
 ### Ajouté
