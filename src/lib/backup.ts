@@ -15,6 +15,7 @@ import {
   purchaseSchema,
   savedViewSchema,
   settingRowSchema,
+  shoppingItemSchema,
   spoolSchema,
   stockMovementSchema,
   weighingSchema,
@@ -36,6 +37,7 @@ export const TABLE_SCHEMAS = {
   alertRules: alertRuleSchema,
   notifications: notificationSchema,
   importMappings: importMappingSchema,
+  shoppingItems: shoppingItemSchema,
   attachments: attachmentSchema,
   settings: settingRowSchema,
 } as const;

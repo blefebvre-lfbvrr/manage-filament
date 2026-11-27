@@ -6,8 +6,11 @@ import { buildDemoData } from '@/lib/demo';
 import type { ImportPlan } from '@/lib/excel/plan';
 import { newId, nowIso } from '@/lib/ids';
 import { adjustmentTo, initialMovements, makeMovement, reverseMovement, sumMovements } from '@/lib/movements';
+import type { Alert } from '@/lib/alerts';
 import {
   appSettingsSchema,
+  type AlertRule,
+  type ShoppingItem,
   type PrintJob,
   type Project,
   type Weighing,
@@ -747,4 +750,143 @@ export async function saveAttachment(blob: Blob, name: string, db: FilaTrackDB =
     deletedAt: null,
   });
   return id;
+}
+
+/* ------------------------------- Alertes ------------------------------- */
+
+export type AlertRuleInput = Omit<AlertRule, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'> & {
+  id?: string;
+};
+
+export async function saveAlertRule(input: AlertRuleInput, db: FilaTrackDB = getDb()): Promise<AlertRule> {
+  const now = nowIso();
+  const existing = input.id ? await db.alertRules.get(input.id) : undefined;
+  const rule: AlertRule = {
+    ...input,
+    id: existing?.id ?? newId(),
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+    deletedAt: null,
+  };
+  await db.alertRules.put(rule);
+  return rule;
+}
+
+export async function deleteAlertRule(id: string, db: FilaTrackDB = getDb()): Promise<void> {
+  await db.alertRules.update(id, { deletedAt: nowIso(), updatedAt: nowIso() });
+}
+
+/** Mémorise qu'une alerte a été lue (elle sort du compteur jusqu'à ce que la situation change). */
+export async function markAlertsRead(
+  alerts: Pick<Alert, 'key' | 'kind' | 'title' | 'body' | 'link'>[],
+  db: FilaTrackDB = getDb(),
+): Promise<void> {
+  const now = nowIso();
+  await db.transaction('rw', db.notifications, async () => {
+    for (const a of alerts) {
+      const cur = await db.notifications.get(a.key);
+      await db.notifications.put({
+        ...(cur ?? {
+          id: a.key,
+          kind: a.kind,
+          title: a.title,
+          body: a.body,
+          link: a.link,
+          createdAt: now,
+          deletedAt: null,
+        }),
+        readAt: now,
+        updatedAt: now,
+      });
+    }
+  });
+}
+
+export async function markAlertsNotified(
+  alerts: Pick<Alert, 'key' | 'kind' | 'title' | 'body' | 'link'>[],
+  db: FilaTrackDB = getDb(),
+): Promise<void> {
+  const now = nowIso();
+  await db.transaction('rw', db.notifications, async () => {
+    for (const a of alerts) {
+      const cur = await db.notifications.get(a.key);
+      await db.notifications.put({
+        ...(cur ?? {
+          id: a.key,
+          kind: a.kind,
+          title: a.title,
+          body: a.body,
+          link: a.link,
+          createdAt: now,
+          deletedAt: null,
+          readAt: null,
+        }),
+        notifiedAt: now,
+        updatedAt: now,
+      });
+    }
+  });
+}
+
+/** Bobine séchée aujourd'hui (réinitialise le rappel de séchage). */
+export async function markDried(
+  spoolId: string,
+  note?: string | null,
+  db: FilaTrackDB = getDb(),
+): Promise<void> {
+  await db.spools.update(spoolId, {
+    lastDriedAt: nowIso().slice(0, 10),
+    ...(note ? { humidityNote: note } : {}),
+    updatedAt: nowIso(),
+  });
+}
+
+/* --------------------------- Liste de courses --------------------------- */
+
+export type ShoppingItemInput = Omit<
+  ShoppingItem,
+  'id' | 'createdAt' | 'updatedAt' | 'deletedAt' | 'boughtAt'
+> & { id?: string };
+
+export async function addShoppingItem(
+  input: ShoppingItemInput,
+  db: FilaTrackDB = getDb(),
+): Promise<ShoppingItem> {
+  const now = nowIso();
+  // Même article déjà dans la liste (non acheté) : on augmente la quantité.
+  const same = (await db.shoppingItems.toArray()).find(
+    (i) =>
+      !i.deletedAt &&
+      !i.boughtAt &&
+      i.label === input.label &&
+      i.isRefill === input.isRefill &&
+      (i.catalogColorId ?? null) === (input.catalogColorId ?? null),
+  );
+  if (same) {
+    const quantity = same.quantity + input.quantity;
+    await db.shoppingItems.update(same.id, { quantity, updatedAt: now });
+    return { ...same, quantity };
+  }
+  const item: ShoppingItem = {
+    ...input,
+    id: input.id ?? newId(),
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+    boughtAt: null,
+  };
+  await db.shoppingItems.add(item);
+  return item;
+}
+
+export async function updateShoppingItem(
+  id: string,
+  patch: Partial<ShoppingItem>,
+  db: FilaTrackDB = getDb(),
+): Promise<void> {
+  await db.shoppingItems.update(id, { ...patch, updatedAt: nowIso() });
+}
+
+export async function removeShoppingItem(id: string, db: FilaTrackDB = getDb()): Promise<void> {
+  await db.shoppingItems.update(id, { deletedAt: nowIso(), updatedAt: nowIso() });
 }

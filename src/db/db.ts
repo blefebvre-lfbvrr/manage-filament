@@ -13,6 +13,7 @@ import type {
   CatalogProduct,
   CustomFieldDef,
   ImportMapping,
+  ShoppingItem,
   Location,
   PrintJob,
   Project,
@@ -24,7 +25,7 @@ import type {
   Weighing,
 } from '@/lib/schemas';
 
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
 export type DataMode = 'real' | 'demo';
 export const DB_NAMES: Record<DataMode, string> = { real: 'filatrack', demo: 'filatrack-demo' };
@@ -45,6 +46,7 @@ export class FilaTrackDB extends Dexie {
   alertRules!: EntityTable<AlertRule, 'id'>;
   notifications!: EntityTable<AppNotification, 'id'>;
   importMappings!: EntityTable<ImportMapping, 'id'>;
+  shoppingItems!: EntityTable<ShoppingItem, 'id'>;
   attachments!: EntityTable<Attachment, 'id'>;
   settings!: EntityTable<SettingRow, 'key'>;
 
@@ -70,6 +72,10 @@ export class FilaTrackDB extends Dexie {
       importMappings: 'id, &signature',
       attachments: 'id',
       settings: 'key',
+    });
+    // Version 2 — phase 4 : liste de courses ; index des notifications par lecture.
+    this.version(2).stores({
+      shoppingItems: 'id, boughtAt, source, createdAt',
     });
     // Exemple pour une future version :
     // this.version(2).stores({ spools: '..., nouvelIndex' }).upgrade(tx => tx.table('spools').toCollection().modify(s => { ... }));

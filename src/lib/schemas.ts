@@ -277,9 +277,33 @@ export const notificationSchema = baseEntity.extend({
   title: z.string(),
   body: optStr,
   link: optStr,
+  /** Lue / masquée par l'utilisateur. */
   readAt: optStr,
+  /** Notification navigateur déjà envoyée pour cette alerte. */
+  notifiedAt: optStr,
 });
 export type AppNotification = z.infer<typeof notificationSchema>;
+
+/** Ligne de la liste de courses (ajoutée à la main ou depuis un projet). */
+export const shoppingItemSchema = baseEntity.extend({
+  label: z.string().min(1),
+  brand: optStr,
+  productLine: optStr,
+  material: optStr,
+  colorName: optStr,
+  colorHex: optStr,
+  catalogProductId: optStr,
+  catalogColorId: optStr,
+  isRefill: z.boolean().default(false),
+  quantity: z.number().int().positive().default(1),
+  unitPrice: optNum,
+  productUrl: optStr,
+  source: z.enum(['manual', 'alert', 'project']).default('manual'),
+  sourceRef: optStr,
+  note: optStr,
+  boughtAt: optStr,
+});
+export type ShoppingItem = z.infer<typeof shoppingItemSchema>;
 
 export const importMappingSchema = baseEntity.extend({
   name: z.string(),
@@ -324,6 +348,12 @@ export const appSettingsSchema = z.object({
     .default({ order: [], hidden: [] }),
   /** Fenêtre (jours) pour la consommation moyenne utilisée par les prévisions de rupture. */
   forecastWindowDays: z.number().int().positive().default(60),
+  /** Rappel de séchage des matériaux hygroscopiques ouverts (jours, 0 = désactivé). */
+  dryingReminderDays: z.number().int().nonnegative().default(30),
+  /** Inclure les bobines « bientôt vides » (pas seulement « à changer » / vides) dans la liste de courses. */
+  shoppingIncludeLow: z.boolean().default(false),
+  /** Notifications système du navigateur (en plus du centre de notifications). */
+  browserNotifications: z.boolean().default(false),
   backupReminderDays: z.number().int().nonnegative().default(14),
   lastBackupAt: optStr,
 });
