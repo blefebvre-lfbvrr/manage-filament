@@ -1,7 +1,7 @@
 {
   "name": "filatrack",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "FilaTrack — gestion de stock de filaments pour Bambu Lab A1 Combo",
   "license": "MIT",
   "type": "module",
@@ -38,6 +38,7 @@
     "date-fns": "^4.4.0",
     "dexie": "^4.4.7",
     "dexie-react-hooks": "^4.4.0",
+    "fflate": "^0.8.3",
     "lucide-react": "^1.82.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
