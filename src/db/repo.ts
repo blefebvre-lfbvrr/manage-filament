@@ -8,6 +8,9 @@ import { newId, nowIso } from '@/lib/ids';
 import { adjustmentTo, initialMovements, makeMovement, reverseMovement, sumMovements } from '@/lib/movements';
 import {
   appSettingsSchema,
+  type PrintJob,
+  type Project,
+  type Weighing,
   DEFAULT_SETTINGS,
   type AmsSlot,
   type AppSettings,
@@ -15,7 +18,8 @@ import {
   type Spool,
   type StockMovement,
 } from '@/lib/schemas';
-import { statusAfterRemainingChange } from '@/lib/spool';
+import { activePrintMovements, consumesStock, printMovements } from '@/lib/prints';
+import { netFromGross, statusAfterRemainingChange } from '@/lib/spool';
 import { DB_VERSION, getDataMode, getDb, type FilaTrackDB } from './db';
 
 const SETTINGS_KEY = 'app';
@@ -231,13 +235,22 @@ export async function setRemaining(
 }
 
 export async function undoMovement(movementId: string, db: FilaTrackDB = getDb()): Promise<StockMovement> {
-  return db.transaction('rw', db.spools, db.movements, async () => {
+  return db.transaction('rw', db.spools, db.movements, db.prints, async () => {
     const m = await db.movements.get(movementId);
     if (!m) throw new Error('Mouvement introuvable.');
     const rev = reverseMovement(m);
     await db.movements.add(rev);
     await db.movements.update(m.id, { reversedById: rev.id, updatedAt: nowIso() });
     await recomputeRemaining([m.spoolId], db);
+    // Une déduction d'impression annulée depuis le journal : l'impression n'est plus (entièrement) déduite.
+    if (m.type === 'print' && m.refId) {
+      const remaining = activePrintMovements(
+        await db.movements.where('refId').equals(m.refId).toArray(),
+        m.refId,
+      );
+      if (remaining.length === 0)
+        await db.prints.update(m.refId, { stockApplied: false, updatedAt: nowIso() });
+    }
     return rev;
   });
 }
@@ -380,7 +393,9 @@ export async function applyImportPlan(
           res.printsUpdated++;
           continue;
         }
-        await db.prints.add(pp.print);
+        const applied =
+          pp.print.status !== 'planned' && pp.print.usages.some((u) => u.spoolId && u.grams > 0);
+        await db.prints.add({ ...pp.print, stockApplied: applied });
         res.printsCreated++;
         const at = pp.print.date ? `${pp.print.date}T12:00:00.000Z` : new Date(base + i).toISOString();
         for (const u of pp.print.usages) {
@@ -487,4 +502,249 @@ export async function clearAllData(db: FilaTrackDB = getDb()): Promise<void> {
     },
   );
   await ensureSeed(db);
+}
+
+/* ------------------------------ Impressions ------------------------------ */
+
+export type PrintInput = Omit<PrintJob, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt' | 'stockApplied'> & {
+  id?: string;
+};
+
+function aggregate(ms: Pick<StockMovement, 'spoolId' | 'deltaG'>[]): string {
+  const by = new Map<string, number>();
+  for (const m of ms) by.set(m.spoolId, Math.round(((by.get(m.spoolId) ?? 0) + m.deltaG) * 10) / 10);
+  return JSON.stringify([...by].filter(([, g]) => g !== 0).sort());
+}
+
+/** Ouvre les bobines scellées dans lesquelles on vient de consommer. */
+async function openConsumedSpools(db: FilaTrackDB, spoolIds: Iterable<string>) {
+  for (const id of new Set(spoolIds)) {
+    const s = await db.spools.get(id);
+    if (s?.status === 'sealed')
+      await db.spools.update(id, {
+        status: 'opened',
+        openedAt: s.openedAt ?? nowIso().slice(0, 10),
+        updatedAt: nowIso(),
+      });
+  }
+}
+
+/**
+ * Crée ou met à jour une impression et synchronise le stock :
+ * les déductions précédentes sont compensées puis remplacées si les quantités changent.
+ */
+export async function savePrint(
+  input: PrintInput,
+  opts: { applyStock?: boolean } = {},
+  db: FilaTrackDB = getDb(),
+): Promise<PrintJob> {
+  const applyStock = opts.applyStock ?? true;
+  return db.transaction('rw', db.prints, db.movements, db.spools, async () => {
+    const now = nowIso();
+    const existing = input.id ? await db.prints.get(input.id) : undefined;
+    const print: PrintJob = {
+      ...input,
+      // Même précision que le journal (0,1 g) pour que l'impression et la déduction concordent.
+      usages: input.usages.map((u) => ({ ...u, grams: Math.round(u.grams * 10) / 10 })),
+      id: existing?.id ?? input.id ?? newId(),
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+      deletedAt: null,
+      stockApplied: false,
+    };
+    const current = activePrintMovements(
+      await db.movements.where('refId').equals(print.id).toArray(),
+      print.id,
+    );
+    const wanted = applyStock && consumesStock(print.status) ? printMovements(print) : [];
+    const touched = new Set<string>([...current, ...wanted].map((m) => m.spoolId));
+    if (aggregate(current) !== aggregate(wanted)) {
+      for (const m of current) {
+        const rev = reverseMovement(m, `Impression modifiée : ${print.name}`);
+        await db.movements.add(rev);
+        await db.movements.update(m.id, { reversedById: rev.id, updatedAt: now });
+      }
+      if (wanted.length) await db.movements.bulkAdd(wanted);
+    }
+    print.stockApplied = wanted.length > 0;
+    await db.prints.put(print);
+    await recomputeRemaining(touched, db);
+    if (wanted.length)
+      await openConsumedSpools(
+        db,
+        wanted.map((m) => m.spoolId),
+      );
+    return print;
+  });
+}
+
+/** Annule la déduction d'une impression (l'impression reste dans l'historique). */
+export async function unapplyPrintStock(printId: string, db: FilaTrackDB = getDb()): Promise<number> {
+  return db.transaction('rw', db.prints, db.movements, db.spools, async () => {
+    const current = activePrintMovements(
+      await db.movements.where('refId').equals(printId).toArray(),
+      printId,
+    );
+    const print = await db.prints.get(printId);
+    for (const m of current) {
+      const rev = reverseMovement(m, `Déduction annulée : ${print?.name ?? 'impression'}`);
+      await db.movements.add(rev);
+      await db.movements.update(m.id, { reversedById: rev.id, updatedAt: nowIso() });
+    }
+    await db.prints.update(printId, { stockApplied: false, updatedAt: nowIso() });
+    await recomputeRemaining(
+      current.map((m) => m.spoolId),
+      db,
+    );
+    return current.length;
+  });
+}
+
+/** Supprime une impression (logiquement) et rend le filament déduit. */
+export async function deletePrint(printId: string, db: FilaTrackDB = getDb()): Promise<void> {
+  await db.transaction('rw', db.prints, db.movements, db.spools, async () => {
+    await unapplyPrintStock(printId, db);
+    await db.prints.update(printId, { deletedAt: nowIso(), updatedAt: nowIso() });
+  });
+}
+
+export async function restorePrint(printId: string, db: FilaTrackDB = getDb()): Promise<void> {
+  const p = await db.prints.get(printId);
+  if (!p) return;
+  const { id, createdAt: _c, updatedAt: _u, deletedAt: _d, stockApplied: _s, ...rest } = p;
+  await db.prints.update(id, { deletedAt: null });
+  await savePrint({ ...rest, id }, {}, db);
+}
+
+export async function createProject(name: string, db: FilaTrackDB = getDb()): Promise<Project> {
+  const now = nowIso();
+  const existing = (await db.projects.toArray()).find(
+    (p) => !p.deletedAt && p.name.trim().toLowerCase() === name.trim().toLowerCase(),
+  );
+  if (existing) return existing;
+  const p: Project = {
+    id: newId(),
+    name: name.trim(),
+    color: null,
+    budget: null,
+    archived: false,
+    notes: null,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+  };
+  await db.projects.add(p);
+  return p;
+}
+
+/* -------------------------------- Pesée -------------------------------- */
+
+export interface WeighingResult {
+  weighing: Weighing;
+  movement: StockMovement | null;
+}
+
+/** Pesée : poids brut − tare = restant réel ; l'écart est enregistré comme mouvement « pesée ». */
+export async function recordWeighing(
+  spoolId: string,
+  grossG: number,
+  tareG: number,
+  opts: { note?: string | null; updateTare?: boolean } = {},
+  db: FilaTrackDB = getDb(),
+): Promise<WeighingResult> {
+  if (!Number.isFinite(grossG) || grossG < 0) throw new Error('Poids brut invalide.');
+  if (!Number.isFinite(tareG) || tareG < 0) throw new Error('Tare invalide.');
+  return db.transaction('rw', db.spools, db.movements, db.weighings, async () => {
+    const spool = await db.spools.get(spoolId);
+    if (!spool) throw new Error('Bobine introuvable.');
+    const now = nowIso();
+    const netG = netFromGross(grossG, tareG);
+    const weighing: Weighing = {
+      id: newId(),
+      spoolId,
+      grossG,
+      tareG,
+      netG,
+      at: now,
+      note: opts.note ?? null,
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+    };
+    await db.weighings.add(weighing);
+    const movement = adjustmentTo(spoolId, spool.remainingG, netG, 'weighing', {
+      refKind: 'weighing',
+      refId: weighing.id,
+      note: `Pesée : ${grossG} g brut − ${tareG} g de tare = ${netG} g`,
+    });
+    if (movement) await db.movements.add(movement);
+    await recomputeRemaining([spoolId], db);
+    const updated = (await db.spools.get(spoolId))!;
+    const status = statusAfterRemainingChange(updated.status, updated.remainingG);
+    await db.spools.update(spoolId, {
+      needsWeighing: false,
+      status,
+      amsSlot: status === 'ams' ? updated.amsSlot : null,
+      ...(opts.updateTare ? { tareG } : {}),
+      updatedAt: now,
+    });
+    return { weighing, movement };
+  });
+}
+
+/* --------------------------------- AMS --------------------------------- */
+
+export type Placement = 1 | 2 | 3 | 4 | 'external' | null;
+
+/** Place une bobine dans un slot AMS, sur le support externe, ou la retire (null). */
+export async function placeSpool(
+  spoolId: string,
+  target: Placement,
+  db: FilaTrackDB = getDb(),
+): Promise<void> {
+  await db.transaction('rw', db.spools, db.movements, async () => {
+    const spool = await db.spools.get(spoolId);
+    if (!spool) throw new Error('Bobine introuvable.');
+    if (target === null) {
+      await updateSpool(spoolId, { status: spool.remainingG <= 0 ? 'empty' : 'opened', amsSlot: null }, db);
+      return;
+    }
+    if (target === 'external') {
+      const others = await db.spools
+        .where('status')
+        .equals('external')
+        .filter((s) => s.id !== spoolId && !s.deletedAt)
+        .toArray();
+      for (const o of others) await db.spools.update(o.id, { status: 'opened', updatedAt: nowIso() });
+      await updateSpool(
+        spoolId,
+        { status: 'external', amsSlot: null, openedAt: spool.openedAt ?? nowIso().slice(0, 10) },
+        db,
+      );
+      return;
+    }
+    await updateSpool(
+      spoolId,
+      { status: 'ams', amsSlot: target, openedAt: spool.openedAt ?? nowIso().slice(0, 10) },
+      db,
+    );
+  });
+}
+
+/* ---------------------------- Pièces jointes ---------------------------- */
+
+export async function saveAttachment(blob: Blob, name: string, db: FilaTrackDB = getDb()): Promise<string> {
+  const now = nowIso();
+  const id = newId();
+  await db.attachments.add({
+    id,
+    name,
+    mime: blob.type || 'application/octet-stream',
+    size: blob.size,
+    data: blob,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+  });
+  return id;
 }
