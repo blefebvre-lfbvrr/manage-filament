@@ -318,6 +318,12 @@ export const appSettingsSchema = z.object({
       pricePerKwh: z.number().default(0.2),
     })
     .default({ enabled: false, avgPowerW: 95, pricePerKwh: 0.2 }),
+  /** Disposition du tableau de bord (ordre et widgets masqués). */
+  dashboard: z
+    .object({ order: z.array(z.string()).default([]), hidden: z.array(z.string()).default([]) })
+    .default({ order: [], hidden: [] }),
+  /** Fenêtre (jours) pour la consommation moyenne utilisée par les prévisions de rupture. */
+  forecastWindowDays: z.number().int().positive().default(60),
   backupReminderDays: z.number().int().nonnegative().default(14),
   lastBackupAt: optStr,
 });

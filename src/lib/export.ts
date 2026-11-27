@@ -10,6 +10,7 @@ import {
   stockLevel,
 } from './spool';
 import { locationOf } from './filters';
+import { printCosts } from './stats';
 import type { AppSettings } from './schemas';
 
 export type Row = Record<string, string | number | boolean | null>;
@@ -91,7 +92,14 @@ export function spoolRows(
     });
 }
 
-export function printRows(prints: PrintJob[], spools: Spool[], projects: Project[]): Row[] {
+export function printRows(
+  prints: PrintJob[],
+  spools: Spool[],
+  projects: Project[],
+  settings: Pick<AppSettings, 'electricity'> = {
+    electricity: { enabled: false, avgPowerW: 0, pricePerKwh: 0 },
+  },
+): Row[] {
   const byId = new Map(spools.map((s) => [s.id, s]));
   const projectsById = new Map(projects.map((p) => [p.id, p.name]));
   return prints
@@ -122,7 +130,9 @@ export function printRows(prints: PrintJob[], spools: Spool[], projects: Project
             .map((u) => `${code(u.spoolId)}:${u.grams}`)
             .join(', ') || null,
         'Durée (min)': p.durationMin ?? null,
-        'Coût (€)': r2(printCost(p, byId)),
+        'Coût matière (€)': printCosts(p, byId, settings).material,
+        'Coût électricité (€)': printCosts(p, byId, settings).energy,
+        'Coût (€)': printCosts(p, byId, settings).total,
         'À vérifier': p.needsReview ? 'oui' : 'non',
         Notes: p.notes ?? null,
       };
