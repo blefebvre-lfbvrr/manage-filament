@@ -20,6 +20,7 @@ import { formatDuration, scaleForFailure } from '@/lib/prints';
 import type { AmsSlot, FilamentUsage, PrintStatus } from '@/lib/schemas';
 import { parseGcodeMeta } from '@/lib/slicer/gcode';
 import { autoMatchAll, rankCandidates } from '@/lib/slicer/match';
+import { matchProject } from '@/lib/projects';
 import { parse3mfFile } from '@/lib/slicer/threemf';
 import { SlicerParseError, type SlicedFile, type SlicedPlate } from '@/lib/slicer/types';
 import { ColorSwatch } from '../inventory/SpoolBits';
@@ -65,6 +66,9 @@ export function SlicerImportDialog({
   const [status, setStatus] = useState<PrintStatus>('success');
   const [failedAt, setFailedAt] = useState('');
   const [projectId, setProjectId] = useState('');
+  const [match, setMatch] = useState<{ projectId: string; partId: string | null; reason: string } | null>(
+    null,
+  );
   const [newProject, setNewProject] = useState('');
   const [keepFile, setKeepFile] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -114,6 +118,16 @@ export function SlicerImportDialog({
       }
       setRows(r);
       setNames(n);
+      // Rattachement automatique : préfixe [CODE] du fichier ou .3mf déjà importé dans un projet.
+      const m = matchProject(f.name, projects);
+      if (m) {
+        setProjectId(m.project.id);
+        setMatch({
+          projectId: m.project.id,
+          partId: m.part?.id ?? null,
+          reason: `${m.project.name} (${m.reason})`,
+        });
+      } else setMatch(null);
     } catch (e) {
       toast.error(e instanceof SlicerParseError ? e.message : 'Fichier illisible.');
     }
@@ -163,6 +177,8 @@ export function SlicerImportDialog({
           date: status === 'planned' ? null : new Date().toISOString().slice(0, 10),
           durationMin: p.predictionS != null ? Math.round(p.predictionS / 60) : null,
           projectId: project,
+          projectPartId: project && project === match?.projectId ? match.partId : null,
+          plateIndex: project && project === match?.projectId && match.partId ? p.index : null,
           plate: p.name ?? `Plateau ${p.index}`,
           status,
           failedAtPercent: pct,
@@ -335,7 +351,11 @@ export function SlicerImportDialog({
                   />
                 </Field>
               )}
-              <Field label="Projet" htmlFor={id('project')}>
+              <Field
+                label="Projet"
+                htmlFor={id('project')}
+                hint={match ? `Rattaché automatiquement : ${match.reason}` : undefined}
+              >
                 <NativeSelect
                   id={id('project')}
                   value={projectId}

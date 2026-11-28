@@ -70,6 +70,8 @@ export function PrintFormDialog({
   const [status, setStatus] = useState<PrintStatus>('success');
   const [failedAt, setFailedAt] = useState('');
   const [projectId, setProjectId] = useState('');
+  const [partId, setPartId] = useState('');
+  const [plateIndex, setPlateIndex] = useState('');
   const [newProject, setNewProject] = useState('');
   const [plate, setPlate] = useState('');
   const [hours, setHours] = useState('');
@@ -88,6 +90,8 @@ export function PrintFormDialog({
     setStatus(src?.status ?? 'success');
     setFailedAt(src?.failedAtPercent == null ? '' : String(src.failedAtPercent));
     setProjectId(src?.projectId ?? '');
+    setPartId(src?.projectPartId ?? '');
+    setPlateIndex(src?.plateIndex == null ? '' : String(src.plateIndex));
     setNewProject('');
     setPlate(src?.plate ?? '');
     const d = src?.durationMin;
@@ -103,6 +107,8 @@ export function PrintFormDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, print?.id, draft]);
 
+  const selectedProject = projects.find((p) => p.id === projectId);
+  const selectedPart = selectedProject?.parts.find((p) => p.id === partId);
   const pct = status === 'failed' && failedAt.trim() !== '' ? toNumber(failedAt) : null;
   const factor = pct != null && Number.isFinite(pct) ? pct / 100 : 1;
   // En modification, le filament déjà déduit par cette impression redevient disponible.
@@ -140,6 +146,8 @@ export function PrintFormDialog({
       date: date || null,
       durationMin: hours.trim() || minutes.trim() ? Math.round(h * 60 + m) : null,
       projectId: projectId && projectId !== NEW_PROJECT ? projectId : null,
+      projectPartId: projectId && projectId !== NEW_PROJECT && partId ? partId : null,
+      plateIndex: partId && plateIndex ? Number(plateIndex) : null,
       plate: plate.trim() || null,
       status,
       failedAtPercent: status === 'failed' && pct != null && Number.isFinite(pct) ? pct : null,
@@ -249,6 +257,41 @@ export function PrintFormDialog({
                   value={newProject}
                   onChange={(e) => setNewProject(e.target.value)}
                 />
+              </Field>
+            )}
+            {selectedProject && selectedProject.parts.length > 0 && (
+              <Field label="Pièce du projet" htmlFor={id('part')} hint="Pour l’avancement du projet">
+                <NativeSelect
+                  id={id('part')}
+                  value={partId}
+                  onChange={(e) => {
+                    setPartId(e.target.value);
+                    setPlateIndex('');
+                  }}
+                >
+                  <option value="">— Non précisée —</option>
+                  {selectedProject.parts.map((pt) => (
+                    <option key={pt.id} value={pt.id}>
+                      {pt.name}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Field>
+            )}
+            {selectedPart && selectedPart.plates.length > 1 && (
+              <Field label="Plateau de la pièce" htmlFor={id('plateidx')}>
+                <NativeSelect
+                  id={id('plateidx')}
+                  value={plateIndex}
+                  onChange={(e) => setPlateIndex(e.target.value)}
+                >
+                  <option value="">—</option>
+                  {selectedPart.plates.map((pl) => (
+                    <option key={pl.index} value={pl.index}>
+                      {pl.name ?? `Plateau ${pl.index}`}
+                    </option>
+                  ))}
+                </NativeSelect>
               </Field>
             )}
             <Field label="Plateau" htmlFor={id('plate')}>

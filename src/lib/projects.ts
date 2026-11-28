@@ -137,6 +137,8 @@ export interface ProjectProgress {
   failed: PrintJob[];
   done: PrintJob[];
   planned: PrintJob[];
+  /** Impressions réussies du projet sans pièce précisée (non comptées dans l'avancement). */
+  unassigned: number;
 }
 
 /**
@@ -160,9 +162,8 @@ export function projectProgress(project: Pick<Project, 'id' | 'parts'>, prints: 
   const unassigned = done.filter(
     (p) => !p.projectPartId || !project.parts.some((x) => x.id === p.projectPartId),
   ).length;
-  const printedPlates = totalPlates
-    ? Math.min(totalPlates, perPart.reduce((a, p) => a + p.printed, 0) + unassigned)
-    : done.length;
+  // Avec des pièces, seules les impressions rattachées à une pièce font avancer le projet.
+  const printedPlates = totalPlates ? perPart.reduce((a, p) => a + p.printed, 0) : done.length;
   return {
     printedPlates,
     totalPlates,
@@ -171,6 +172,7 @@ export function projectProgress(project: Pick<Project, 'id' | 'parts'>, prints: 
     failed,
     done,
     planned,
+    unassigned: project.parts.length ? unassigned : 0,
   };
 }
 
@@ -471,4 +473,95 @@ export function revenueByMonth(
   return [...map.values()]
     .map((m) => ({ ...m, revenue: r2(m.revenue), cost: r2(m.cost), margin: r2(m.margin) }))
     .sort((a, b) => a.month.localeCompare(b.month));
+}
+
+/** Plan restant : chaque pièce au prorata des plateaux encore à imprimer. */
+export function remainingPlan(
+  project: Pick<Project, 'parts'>,
+  progress: Pick<ProjectProgress, 'perPart'>,
+): ProjectPlan {
+  const scaled = project.parts.map((part) => {
+    const pp = progress.perPart.find((x) => x.partId === part.id);
+    const ratio = pp && pp.total ? (pp.total - pp.printed) / pp.total : 1;
+    return {
+      quantity: 1,
+      plates: part.plates.map((pl) => ({
+        ...pl,
+        predictionS: (pl.predictionS ?? 0) * part.quantity * ratio,
+        filaments: pl.filaments.map((f) => ({
+          ...f,
+          grams: f.grams * part.quantity * ratio,
+          lengthM: (f.lengthM ?? 0) * part.quantity * ratio,
+        })),
+      })),
+    };
+  });
+  const plan = projectPlan(scaled);
+  const totalPlates = progress.perPart.reduce((a, p) => a + (p.total - p.printed), 0);
+  return { ...plan, filaments: plan.filaments.filter((f) => f.grams > 0), totalPlates };
+}
+
+export interface ConsumptionRow {
+  key: string;
+  label: string;
+  color: string | null;
+  plannedG: number;
+  actualG: number;
+  diffG: number;
+}
+
+/**
+ * Prévu (plan) contre réel (impressions) : chaque bobine consommée est rattachée au filament prévu
+ * du même matériau dont la couleur est la plus proche ; le reste apparaît en « hors plan ».
+ */
+export function compareConsumption(
+  plan: PlannedFilament[],
+  uses: ActualUse[],
+  spoolsById: Map<string, Spool>,
+  normalizeType: (t: string) => string,
+): ConsumptionRow[] {
+  const rows = new Map<string, ConsumptionRow>(
+    plan.map((f) => [
+      f.key,
+      {
+        key: f.key,
+        label: `${f.productHint ?? f.type}`,
+        color: f.color,
+        plannedG: f.grams,
+        actualG: 0,
+        diffG: 0,
+      },
+    ]),
+  );
+  for (const u of uses) {
+    const s = spoolsById.get(u.spoolId);
+    if (!s) continue;
+    const candidates = plan.filter((f) => normalizeType(f.type).toUpperCase() === s.material.toUpperCase());
+    const best = candidates.sort((a, b) => dist(a.color, s.colorHex) - dist(b.color, s.colorHex))[0];
+    const key = best?.key ?? `hors-plan|${s.id}`;
+    const row = rows.get(key) ?? {
+      key,
+      label: `${s.productLine || s.material} ${s.colorName} (hors plan)`,
+      color: normalizeHex(s.colorHex),
+      plannedG: 0,
+      actualG: 0,
+      diffG: 0,
+    };
+    row.actualG += u.grams;
+    rows.set(key, row);
+  }
+  return [...rows.values()].map((r) => ({
+    ...r,
+    actualG: roundG(r.actualG),
+    diffG: roundG(r.actualG - r.plannedG),
+  }));
+}
+
+function dist(a: string | null | undefined, b: string | null | undefined): number {
+  const ha = normalizeHex(a);
+  const hb = normalizeHex(b);
+  if (!ha || !hb) return 500;
+  const p = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const [x, y] = [p(ha), p(hb)];
+  return Math.hypot(x[0]! - y[0]!, x[1]! - y[1]!, x[2]! - y[2]!);
 }

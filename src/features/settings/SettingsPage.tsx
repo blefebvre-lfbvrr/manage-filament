@@ -11,6 +11,8 @@ import { Switch } from '@/components/ui/switch';
 import { getDataMode, setDataMode } from '@/db/db';
 import { saveSettings } from '@/db/repo';
 import type { AppSettings } from '@/lib/schemas';
+import { CloudSettings } from './CloudSettings';
+import { ProjectSettings } from './ProjectSettings';
 
 const CURRENCIES = ['EUR', 'CHF', 'USD', 'GBP', 'CAD'];
 const DATE_FORMATS = ['dd/MM/yyyy', 'dd/MM/yy', 'd MMM yyyy', 'yyyy-MM-dd'];
@@ -305,6 +307,9 @@ export function SettingsPage() {
             </Field>
           </CardContent>
         </Card>
+
+        <ProjectSettings />
+        <CloudSettings />
 
         <Card id="demo" className="lg:col-span-2">
           <CardHeader>

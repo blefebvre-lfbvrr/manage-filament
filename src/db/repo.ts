@@ -10,6 +10,8 @@ import { adjustmentTo, initialMovements, makeMovement, reverseMovement, sumMovem
 import type { Alert } from '@/lib/alerts';
 import {
   appSettingsSchema,
+  type Contact,
+  type ProjectPart,
   type AlertRule,
   type ShoppingItem,
   type PrintJob,
@@ -879,4 +881,69 @@ export async function updateShoppingItem(
 
 export async function removeShoppingItem(id: string, db: FilaTrackDB = getDb()): Promise<void> {
   await db.shoppingItems.update(id, { deletedAt: nowIso(), updatedAt: nowIso() });
+}
+
+/* ------------------------------- Projets ------------------------------- */
+
+/** Enregistre un projet (marqué « à synchroniser »). */
+export async function saveProject(project: Project, db: FilaTrackDB = getDb()): Promise<Project> {
+  const next: Project = { ...project, updatedAt: nowIso(), sync: { ...project.sync, dirty: true } };
+  await db.projects.put(next);
+  return next;
+}
+
+export async function updateProject(
+  id: string,
+  patch: Partial<Project>,
+  db: FilaTrackDB = getDb(),
+): Promise<Project> {
+  const cur = await db.projects.get(id);
+  if (!cur) throw new Error('Projet introuvable.');
+  return saveProject({ ...cur, ...patch }, db);
+}
+
+export async function deleteProject(id: string, db: FilaTrackDB = getDb()): Promise<void> {
+  await updateProject(id, { deletedAt: nowIso() }, db);
+}
+
+export async function saveContact(
+  input: Omit<Contact, 'createdAt' | 'updatedAt' | 'deletedAt' | 'id'> & { id?: string },
+  db: FilaTrackDB = getDb(),
+): Promise<Contact> {
+  const now = nowIso();
+  const cur = input.id ? await db.contacts.get(input.id) : undefined;
+  const c: Contact = {
+    ...input,
+    id: cur?.id ?? newId(),
+    createdAt: cur?.createdAt ?? now,
+    updatedAt: now,
+    deletedAt: null,
+    sync: { ...cur?.sync, dirty: true },
+  };
+  await db.contacts.put(c);
+  return c;
+}
+
+/** Ajoute une pièce à un projet (depuis un .3mf lu, ou saisie manuelle). */
+export async function addProjectPart(
+  projectId: string,
+  part: Omit<ProjectPart, 'id'>,
+  file?: File | Blob | null,
+  db: FilaTrackDB = getDb(),
+): Promise<ProjectPart> {
+  const created: ProjectPart = { ...part, id: newId() };
+  if (file) created.fileId = await saveAttachment(file, part.fileName ?? 'fichier.3mf', db);
+  const p = await db.projects.get(projectId);
+  if (!p) throw new Error('Projet introuvable.');
+  await saveProject({ ...p, parts: [...p.parts, created] }, db);
+  return created;
+}
+
+/** Réserve des bobines pour un projet (remplace les réservations existantes). */
+export async function setReservations(
+  projectId: string,
+  reservations: Project['reservations'],
+  db: FilaTrackDB = getDb(),
+): Promise<void> {
+  await updateProject(projectId, { reservations: reservations.filter((r) => r.grams > 0) }, db);
 }

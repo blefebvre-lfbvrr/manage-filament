@@ -17,6 +17,10 @@ import {
   SquareStack,
 } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
+import { getGitHubToken } from '@/db/cloud';
+import { runSync } from '@/features/projects/CloudSyncButton';
+
+let syncedOnce = false;
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,6 +62,13 @@ export function Layout() {
     isBackupDue(settings.lastBackupAt, settings.backupReminderDays, new Date(), spoolCount > 0) && !demo;
 
   useEffect(() => applyTheme(settings.theme), [settings.theme]);
+  // Synchronisation des projets au chargement (si un token GitHub est configuré).
+  const autoSync = settings.cloud.autoSync;
+  useEffect(() => {
+    if (!autoSync || demo || !getGitHubToken() || syncedOnce) return;
+    syncedOnce = true;
+    void runSync(true);
+  }, [autoSync, demo]);
 
   return (
     <div className="flex min-h-dvh flex-col md:flex-row">
@@ -67,7 +78,7 @@ export function Layout() {
       >
         Aller au contenu
       </a>
-      <aside className="bg-card hidden w-60 shrink-0 flex-col border-r md:flex">
+      <aside className="bg-card hidden w-60 shrink-0 flex-col border-r md:flex print:hidden">
         <div className="flex items-center gap-2 py-4 pr-2 pl-5">
           <Boxes className="text-primary size-6" aria-hidden />
           <span className="text-lg font-bold">FilaTrack</span>
@@ -97,7 +108,7 @@ export function Layout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col pb-20 md:pb-0">
-        <header className="bg-background/95 sticky top-0 z-30 flex items-center gap-2 border-b px-4 py-1.5 backdrop-blur md:hidden">
+        <header className="bg-background/95 sticky top-0 z-30 flex items-center gap-2 border-b px-4 py-1.5 backdrop-blur md:hidden print:hidden">
           <Boxes className="text-primary size-5" aria-hidden />
           <span className="font-bold">FilaTrack</span>
           <NotificationBell className="ml-auto" />
@@ -105,7 +116,7 @@ export function Layout() {
         {demo && (
           <div
             role="status"
-            className="bg-warn/15 text-warn-foreground flex flex-wrap items-center gap-2 border-b px-4 py-2 text-sm"
+            className="bg-warn/15 text-warn-foreground flex flex-wrap items-center gap-2 border-b px-4 py-2 text-sm print:hidden"
           >
             <FlaskConical className="size-4" aria-hidden />
             <span>Mode démo : données fictives, tes vraies données ne sont pas touchées.</span>
@@ -122,7 +133,7 @@ export function Layout() {
         {backupDue && (
           <div
             role="status"
-            className="bg-primary/10 flex flex-wrap items-center gap-2 border-b px-4 py-2 text-sm"
+            className="bg-primary/10 flex flex-wrap items-center gap-2 border-b px-4 py-2 text-sm print:hidden"
           >
             <Download className="size-4" aria-hidden />
             <span>
@@ -147,7 +158,7 @@ export function Layout() {
 
       <nav
         aria-label="Navigation principale"
-        className="bg-card fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="bg-card fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t pb-[env(safe-area-inset-bottom)] md:hidden print:hidden"
       >
         {NAV.filter((n) => n.mobile).map((n) => (
           <NavLink

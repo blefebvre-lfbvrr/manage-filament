@@ -214,3 +214,17 @@ export function timeEstimate(
   const days = Math.ceil(hours / settings.projects.printHoursPerDay);
   return { hours: Math.round(hours * 10) / 10, days, endDate: addDays(now, days) };
 }
+
+/** « PLA Basic Noir » plutôt que « PLA Basic #000000 », d'après le catalogue (couleur la plus proche). */
+export function needLabel(
+  need: Pick<PlannedFilament, 'type' | 'productHint' | 'color'>,
+  catalog?: CatalogLike,
+): string {
+  const line = need.productHint || need.type;
+  const hex = normalizeHex(need.color);
+  if (!catalog || !hex) return `${line}${hex ? ` ${hex}` : ''}`;
+  const product = findProduct(line, catalog.products);
+  const pool = catalog.colors.filter((c) => !c.deletedAt && (!product || c.productId === product.id));
+  const best = pool.map((c) => ({ c, d: colorDistance(hex, c.hex) })).sort((a, b) => a.d - b.d)[0];
+  return best && best.d <= SAME_COLOR_MAX ? `${line} ${best.c.name}` : `${line} ${hex}`;
+}

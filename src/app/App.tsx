@@ -34,6 +34,15 @@ const AlertsPage = lazy(() =>
 const ShoppingPage = lazy(() =>
   import('@/features/shopping/ShoppingPage').then((m) => ({ default: m.ShoppingPage })),
 );
+const ProjectDetailPage = lazy(() =>
+  import('@/features/projects/ProjectDetailPage').then((m) => ({ default: m.ProjectDetailPage })),
+);
+const ProjectDocumentPage = lazy(() =>
+  import('@/features/projects/ProjectDocumentPage').then((m) => ({ default: m.ProjectDocumentPage })),
+);
+const QuickFeasibilityPage = lazy(() =>
+  import('@/features/projects/QuickFeasibilityPage').then((m) => ({ default: m.QuickFeasibilityPage })),
+);
 const SettingsPage = lazy(() =>
   import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 );
@@ -56,6 +65,9 @@ const router = createHashRouter([
       { path: 'journal', element: page(<JournalPage />) },
       { path: 'dashboard', element: page(<DashboardPage />) },
       { path: 'projects', element: page(<ProjectsPage />) },
+      { path: 'projects/:id', element: page(<ProjectDetailPage />) },
+      { path: 'projects/:id/document', element: page(<ProjectDocumentPage />) },
+      { path: 'feasibility', element: page(<QuickFeasibilityPage />) },
       { path: 'alerts', element: page(<AlertsPage />) },
       { path: 'shopping', element: page(<ShoppingPage />) },
       { path: 'catalog', element: page(<CatalogPage />) },

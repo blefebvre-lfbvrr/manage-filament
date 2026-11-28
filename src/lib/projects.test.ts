@@ -4,6 +4,8 @@ import { analyzeFeasibility, spoolOptions, summarize, timeEstimate, withMargins 
 import { makeProject } from './project-factory';
 import {
   actualConsumption,
+  compareConsumption,
+  remainingPlan,
   estimatedCost,
   filterProjects,
   EMPTY_PROJECT_FILTERS,
@@ -113,7 +115,7 @@ describe('plan et avancement', () => {
       print({ projectId: 'other' }),
     ];
     const pr = projectProgress(project, prints);
-    expect(pr).toMatchObject({ printedPlates: 3, totalPlates: 4, ratio: 0.75 });
+    expect(pr).toMatchObject({ printedPlates: 2, totalPlates: 4, ratio: 0.5, unassigned: 1 });
     expect(pr.failed).toHaveLength(1);
     expect(pr.planned).toHaveLength(1);
     expect(projectProgress(makeProject('Q', { id: 'q' }), [print({ projectId: 'q' })]).ratio).toBe(1);
@@ -357,5 +359,56 @@ describe('faisabilité', () => {
     const t = timeEstimate(25 * 3600, settings, now);
     expect(t).toMatchObject({ hours: 25, days: 3 });
     expect(t.endDate.toISOString().slice(0, 10)).toBe('2026-11-30');
+  });
+});
+
+describe('plan restant et prévu / réel', () => {
+  it('plan restant au prorata des plateaux imprimés', () => {
+    const project = makeProject('P', { id: 'p', parts: [part()] });
+    const pr = projectProgress(project, [
+      print({ projectId: 'p', projectPartId: 'part1' }),
+      print({ projectId: 'p', projectPartId: 'part1' }),
+    ]);
+    const rest = remainingPlan(project, pr);
+    expect(rest.totalPlates).toBe(2);
+    expect(rest.filaments.map((f) => [f.productHint, f.grams])).toEqual([
+      ['PLA Basic', 150],
+      ['PETG HF', 20],
+    ]);
+    expect(rest.totalTimeS).toBe(5400);
+  });
+  it('rattache chaque bobine au filament prévu le plus proche', () => {
+    const plan = projectPlan([part()]).filaments;
+    const black = demo.spools.find((s) => s.code === 'PLA-001')!;
+    const tpu = demo.spools.find((s) => s.code === 'TPU-001')!;
+    const rows = compareConsumption(
+      plan,
+      [
+        { spoolId: black.id, grams: 280, failedG: 0, cost: 0 },
+        { spoolId: tpu.id, grams: 5, failedG: 0, cost: 0 },
+      ],
+      byId,
+      (t) => t,
+    );
+    expect(rows.find((r) => r.label === 'PLA Basic')).toMatchObject({
+      plannedG: 300,
+      actualG: 280,
+      diffG: -20,
+    });
+    expect(rows.find((r) => r.label === 'PETG HF')).toMatchObject({ actualG: 0, diffG: -40 });
+    expect(rows.find((r) => r.label.includes('hors plan'))).toMatchObject({ plannedG: 0, actualG: 5 });
+  });
+});
+
+describe('libellé des filaments prévus', () => {
+  it('nom de couleur du catalogue', async () => {
+    const { needLabel } = await import('./feasibility');
+    expect(needLabel({ type: 'PLA', productHint: 'PLA Basic', color: '#000001' }, catalog)).toBe(
+      'PLA Basic Noir',
+    );
+    expect(needLabel({ type: 'PLA', productHint: 'PLA Basic', color: '#123456' }, catalog)).toBe(
+      'PLA Basic #123456',
+    );
+    expect(needLabel({ type: 'PETG', productHint: null, color: null })).toBe('PETG');
   });
 });
