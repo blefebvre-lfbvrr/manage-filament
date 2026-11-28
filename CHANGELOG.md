@@ -4,6 +4,19 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), ver
 
 ## [Non publié]
 
+## [0.7.0] — 2026-11-28 — Phase 7 : étiquettes et application installable
+
+### Ajouté
+
+- Étiquettes QR (ouvrent la fiche de la bobine) : planches A4 prédéfinies, étiquette seule pour imprimante à rouleau, format personnalisé, emplacements déjà utilisés, exemplaires ; bouton « Étiquette » sur la fiche.
+- Page « Scanner » : caméra (BarcodeDetector ou jsQR), photo ou saisie du code ; actions rapides (peser, placer dans l’AMS, séchée).
+- Plaquette d’identification à imprimer en 3D (.stl) avec le code et la couleur en relief.
+- PWA complète : manifeste, icônes, service worker, fonctionnement hors ligne, proposition de mise à jour, raccourcis, bouton d’installation.
+
+### Modifié
+
+- Navigation mobile : « Scanner » remplace « Pesée » (toujours accessible via « Plus » et depuis le scan).
+
 ## [0.6.0] — 2026-11-28 — Phase 6 : synchro cloud Bambu Lab
 
 ### Ajouté

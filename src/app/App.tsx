@@ -44,6 +44,10 @@ const QuickFeasibilityPage = lazy(() =>
   import('@/features/projects/QuickFeasibilityPage').then((m) => ({ default: m.QuickFeasibilityPage })),
 );
 const InboxPage = lazy(() => import('@/features/inbox/InboxPage').then((m) => ({ default: m.InboxPage })));
+const LabelsPage = lazy(() =>
+  import('@/features/labels/LabelsPage').then((m) => ({ default: m.LabelsPage })),
+);
+const ScanPage = lazy(() => import('@/features/labels/ScanPage').then((m) => ({ default: m.ScanPage })));
 const SettingsPage = lazy(() =>
   import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 );
@@ -74,6 +78,8 @@ const router = createHashRouter([
       { path: 'catalog', element: page(<CatalogPage />) },
       { path: 'data', element: page(<ImportExportPage />) },
       { path: 'inbox', element: page(<InboxPage />) },
+      { path: 'labels', element: page(<LabelsPage />) },
+      { path: 'scan', element: page(<ScanPage />) },
       { path: 'settings', element: page(<SettingsPage />) },
       { path: '*', element: <NotFound /> },
     ],

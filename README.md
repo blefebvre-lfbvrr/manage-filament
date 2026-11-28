@@ -98,6 +98,18 @@ _Captures réalisées avec les données de démonstration._
 - Chiffre d’affaires et marge des projets pour des tiers.
 - **Synchronisation** des projets, contacts et `.3mf` dans le dépôt privé `manage-filament-data` : hors ligne d’abord, conflits fusionnés sans perte.
 
+**Synchro cloud Bambu Lab** (phase 6, facultative)
+
+- Historique des impressions récupéré par une GitHub Action planifiée, écrit dans le dépôt privé, proposé dans **« À valider »** (bobine par slot AMS puis couleur, projet par `[CODE]`, échecs au prorata, validation automatique optionnelle, jamais deux déductions).
+- Suivi temps réel MQTT en option (`npm run bambu-live`). Détails et limites : [sync-bambu/README.md](sync-bambu/README.md).
+
+**Étiquettes et mobile** (phase 7)
+
+- Étiquettes QR sur planches A4 ou étiquette seule, format personnalisé ; le QR ouvre la fiche de la bobine.
+- Scan par la caméra (ou une photo) avec actions rapides : peser, placer dans l’AMS, séchée.
+- Plaquette d’identification à imprimer en 3D (.stl).
+- Application installable (PWA) qui fonctionne hors ligne.
+
 **Données**
 
 - **Import Excel**, détaillé dans [docs/import-excel.md](docs/import-excel.md) :
@@ -190,7 +202,7 @@ Mise en place, secrets à créer et **limites** (API non officielle, blocage Clo
   - boîte de réception « À valider » ;
   - rattachement aux projets ;
   - option MQTT temps réel.
-- [ ] **Phase 7 — Étiquettes** : QR codes, planches A4, scan par caméra, PWA complète, plaquette STL.
+- [x] **Phase 7 — Étiquettes** : QR codes, planches A4, scan par caméra, PWA complète, plaquette STL.
 - [ ] **Phase 8 — Personnalisation** : gestion des champs personnalisés, vues enregistrées, widgets, palette Ctrl+K, synchronisation de toutes les données.
 
 ## Documentation
@@ -199,6 +211,8 @@ Mise en place, secrets à créer et **limites** (API non officielle, blocage Clo
 - [Import Excel : règles de correspondance](docs/import-excel.md)
 - [Import des impressions .3mf / .gcode](docs/import-impressions.md)
 - [Module Projets : faisabilité, coûts, synchronisation](docs/projets.md)
+- [Étiquettes QR, scan, plaquette STL et PWA](docs/etiquettes.md)
+- [Synchro cloud Bambu Lab](sync-bambu/README.md)
 - [CHANGELOG](CHANGELOG.md)
 
 ## Licence

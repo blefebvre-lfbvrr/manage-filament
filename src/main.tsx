@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ensureSeed } from '@/db/repo';
 import { App } from '@/app/App';
+import { registerPwa } from '@/app/pwa';
 import './index.css';
 
 const root = createRoot(document.getElementById('root')!);
@@ -15,3 +16,5 @@ ensureSeed()
       </StrictMode>,
     ),
   );
+
+void registerPwa();

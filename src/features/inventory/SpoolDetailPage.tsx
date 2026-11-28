@@ -6,6 +6,7 @@ import {
   Droplets,
   Pencil,
   PenLine,
+  QrCode,
   Scale,
   Trash2,
   Undo2,
@@ -223,6 +224,11 @@ export function SpoolDetailPage() {
           )}
           <Button variant="outline" onClick={() => setEdit(true)}>
             <Pencil aria-hidden /> Modifier
+          </Button>
+          <Button variant="outline" asChild>
+            <Link to={`/labels?ids=${spool.id}`}>
+              <QrCode aria-hidden /> Étiquette
+            </Link>
           </Button>
           <Button
             variant="outline"

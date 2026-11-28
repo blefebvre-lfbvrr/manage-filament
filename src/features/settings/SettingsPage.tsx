@@ -12,6 +12,7 @@ import { getDataMode, setDataMode } from '@/db/db';
 import { saveSettings } from '@/db/repo';
 import type { AppSettings } from '@/lib/schemas';
 import { CloudSettings } from './CloudSettings';
+import { InstallCard } from './InstallCard';
 import { ProjectSettings } from './ProjectSettings';
 
 const CURRENCIES = ['EUR', 'CHF', 'USD', 'GBP', 'CAD'];
@@ -101,6 +102,8 @@ export function SettingsPage() {
             </form>
           </CardContent>
         </Card>
+
+        <InstallCard />
 
         <Card>
           <CardHeader>
