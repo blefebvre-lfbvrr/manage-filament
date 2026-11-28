@@ -23,7 +23,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}'],
+    include: ['src/**/*.test.{ts,tsx}', 'sync-bambu/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       include: ['src/lib/**/*.ts'],

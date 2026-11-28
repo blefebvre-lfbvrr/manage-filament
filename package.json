@@ -12,14 +12,16 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b",
+    "typecheck": "tsc -b && tsc -p sync-bambu/tsconfig.json",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "e2e": "playwright test --trace off"
+    "e2e": "playwright test --trace off",
+    "bambu-login": "tsx sync-bambu/login.ts",
+    "bambu-peek": "tsx sync-bambu/peek.ts"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.4.1",
@@ -72,6 +74,7 @@
     "prettier": "^3.10.1",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4.3.5",
+    "tsx": "^4.23.15",
     "typescript": "5.9",
     "typescript-eslint": "^8.74.0",
     "vite": "^7.3.8",
