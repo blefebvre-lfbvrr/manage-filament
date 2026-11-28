@@ -5,7 +5,16 @@
 import { buildCatalogSeed, BAMBU_DEFAULT_TARE_G } from './catalog-seed';
 import { initialMovements, makeMovement, roundG } from './movements';
 import { makeProject } from './project-factory';
-import type { AmsSlot, PrintJob, Project, Spool, SpoolStatus, StockMovement } from './schemas';
+import type {
+  AmsSlot,
+  Contact,
+  PartPlate,
+  PrintJob,
+  Project,
+  Spool,
+  SpoolStatus,
+  StockMovement,
+} from './schemas';
 
 function rng(seed: number) {
   let s = seed >>> 0;
@@ -20,6 +29,7 @@ export interface DemoData {
   prints: PrintJob[];
   movements: StockMovement[];
   projects: Project[];
+  contacts: Contact[];
 }
 
 const DEMO_SPOOLS: [
@@ -77,6 +87,77 @@ export function buildDemoData(now = new Date('2026-11-27T12:00:00Z')): DemoData 
       sync: undefined,
     }),
   );
+  const plate = (predictionS: number, filaments: [string, string, number][]): PartPlate[] => [
+    {
+      index: 1,
+      name: null,
+      predictionS,
+      filaments: filaments.map(([productHint, color, grams], id) => ({
+        id: id + 1,
+        type: productHint.split(' ')[0]!,
+        color,
+        productHint,
+        grams,
+        lengthM: Math.round((grams / 2.98) * 100) / 100,
+      })),
+    },
+  ];
+  const contacts: Contact[] = [
+    {
+      ...stamp(120),
+      id: 'demo-contact-1',
+      name: 'Mme Dupont',
+      contact: 'dupont@example.com',
+      notes: 'Cliente de la micro-entreprise',
+    },
+  ];
+  Object.assign(projects[0]!, {
+    description: 'Boîtes et tiroirs pour ranger l’atelier.',
+    dueDate: iso(-10).slice(0, 10),
+    parts: [
+      {
+        id: 'demo-part-1',
+        name: 'Boîte à vis',
+        source: '3mf',
+        fileName: 'boite-a-vis.gcode.3mf',
+        quantity: 4,
+        plates: plate(7200, [['PLA Basic', '#000000', 85]]),
+      },
+      {
+        id: 'demo-part-2',
+        name: 'Tiroir',
+        source: '3mf',
+        fileName: 'tiroir.gcode.3mf',
+        quantity: 2,
+        plates: plate(14400, [
+          ['PLA Matte', '#000000', 160],
+          ['PLA Basic', '#C12E1F', 20],
+        ]),
+      },
+    ],
+  });
+  Object.assign(projects[1]!, {
+    description: 'Porte-clés personnalisés pour un mariage.',
+    contactId: 'demo-contact-1',
+    deliveredAt: iso(25).slice(0, 10),
+    parts: [
+      {
+        id: 'demo-part-3',
+        name: 'Porte-clés',
+        source: 'manual',
+        quantity: 10,
+        plates: plate(1800, [['PLA Basic', '#FF9016', 12]]),
+      },
+    ],
+    pricing: {
+      paymentStatus: 'paid',
+      finalPrice: 85,
+      paidAmount: 85,
+      paidAt: iso(20).slice(0, 10),
+      marginPct: 40,
+      laborMinutes: 60,
+    },
+  });
 
   const spools: Spool[] = [];
   const movements: StockMovement[] = [];
@@ -215,5 +296,5 @@ export function buildDemoData(now = new Date('2026-11-27T12:00:00Z')): DemoData 
   for (const s of spools) {
     s.remainingG = roundG(movements.filter((m) => m.spoolId === s.id).reduce((a, m) => a + m.deltaG, 0));
   }
-  return { spools, prints, movements, projects };
+  return { spools, prints, movements, projects, contacts };
 }

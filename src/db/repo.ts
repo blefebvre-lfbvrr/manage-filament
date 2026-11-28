@@ -35,7 +35,17 @@ const SETTINGS_KEY = 'app';
 export async function ensureSeed(db: FilaTrackDB = getDb()): Promise<void> {
   await db.transaction(
     'rw',
-    [db.brands, db.products, db.colors, db.spools, db.prints, db.movements, db.projects, db.settings],
+    [
+      db.brands,
+      db.products,
+      db.colors,
+      db.spools,
+      db.prints,
+      db.movements,
+      db.projects,
+      db.contacts,
+      db.settings,
+    ],
     async () => {
       const seeded = await db.settings.get('catalogSeeded');
       if (!seeded) {
@@ -51,6 +61,7 @@ export async function ensureSeed(db: FilaTrackDB = getDb()): Promise<void> {
         await db.prints.bulkPut(demo.prints);
         await db.movements.bulkPut(demo.movements);
         await db.projects.bulkPut(demo.projects);
+        await db.contacts.bulkPut(demo.contacts);
       }
     },
   );
