@@ -9,6 +9,7 @@ import {
   createSpools,
   ensureSeed,
   importBambuTasks,
+  savePrint,
   saveSettings,
   setBambuTaskState,
   validateBambuTask,
@@ -107,6 +108,7 @@ describe('boîte de réception Bambu', () => {
   });
 
   it('validation automatique : seulement si réussie et sûre, avec le projet [CODE]', async () => {
+    await saveSettings({ bambu: { autoValidate: true, autoValidateSince: '2026-11-01T00:00:00Z' } }, db);
     const [s] = await createSpools(spool(), 1, db);
     await db.projects.add(makeProject('Dupont', { id: 'p1', code: 'DUPONT' }));
     await importBambuTasks(
@@ -130,6 +132,33 @@ describe('boîte de réception Bambu', () => {
     expect(await autoValidateBambu(db)).toBe(0);
   });
 
+  it('validation automatique : jamais l’historique ni un doublon probable', async () => {
+    const [s] = await createSpools(spool(), 1, db);
+    // Option activée sans date : la date est fixée maintenant, l'historique reçu n'est pas touché.
+    await saveSettings({ bambu: { autoValidate: true } }, db);
+    await importBambuTasks([task()], db);
+    expect(await autoValidateBambu(db)).toBe(0);
+    expect((await db.settings.get('app'))!.value).toMatchObject({
+      bambu: { autoValidateSince: expect.any(String) },
+    });
+    // Impression déjà saisie le même jour avec le même poids (import Excel) : pas de validation auto.
+    await saveSettings({ bambu: { autoValidate: true, autoValidateSince: '2026-11-01T00:00:00Z' } }, db);
+    await savePrint(
+      {
+        name: 'Support casque',
+        date: '2026-11-27',
+        status: 'success',
+        usages: [{ spoolId: s!.id, grams: 42, role: 'main' }],
+        photoIds: [],
+        custom: {},
+      },
+      {},
+      db,
+    );
+    expect(await autoValidateBambu(db)).toBe(0);
+    expect(await remaining(s!.id)).toBe(958);
+  });
+
   it('synchro : récupère bambu/prints.json depuis le dépôt de données', async () => {
     const file = {
       version: 1,
@@ -146,7 +175,7 @@ describe('boîte de réception Bambu', () => {
     }) as typeof fetch;
     const client = new GitHubClient({ owner: 'me', repo: 'data', branch: 'main', token: 't' }, fetchImpl);
     await createSpools(spool(), 1, db);
-    await saveSettings({ bambu: { autoValidate: true } }, db);
+    await saveSettings({ bambu: { autoValidate: true, autoValidateSince: '2026-11-01T00:00:00Z' } }, db);
     const r = await syncCloud(client, db);
     expect(r).toMatchObject({ bambuNew: 1, bambuAuto: 1, errors: [] });
     expect((await db.settings.get('app'))!.value).toMatchObject({

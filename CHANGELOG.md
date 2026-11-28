@@ -17,6 +17,7 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), ver
 
 - Nom du fichier et nom du plateau extraits du titre (« fichier_NN - plateau ») : l’impression prend le nom du plateau, le projet est reconnu par son nom ou par le .3mf d’une pièce (plateau repris).
 - Réponse réelle anonymisée dans `tests/fixtures/bambu-tasks.json`, avec ses tests.
+- Protection contre la double déduction : la validation automatique ne concerne que les impressions terminées après son activation, et jamais une tâche qui ressemble à une impression déjà saisie (même jour, même poids) ; ces tâches affichent « Déjà saisie ? » dans « À valider ».
 
 ## [1.0.0] — 2026-11-28 — Phase 8 : personnalisation
 

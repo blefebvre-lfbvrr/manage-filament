@@ -526,6 +526,8 @@ export const appSettingsSchema = z.object({
   bambu: z
     .object({
       autoValidate: z.boolean().default(false),
+      /** La validation automatique ne concerne que les impressions terminées après cette date. */
+      autoValidateSince: optStr,
       lastFileUpdatedAt: optStr,
       lastCheckedAt: optStr,
     })

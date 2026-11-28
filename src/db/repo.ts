@@ -8,7 +8,13 @@ import type { ImportPlan } from '@/lib/excel/plan';
 import { newId, nowIso } from '@/lib/ids';
 import { adjustmentTo, initialMovements, makeMovement, reverseMovement, sumMovements } from '@/lib/movements';
 import type { Alert } from '@/lib/alerts';
-import { canAutoValidate, matchTaskProject, proposeUsages, toUsages } from '@/lib/bambu/inbox';
+import {
+  canAutoValidate,
+  findDuplicatePrint,
+  matchTaskProject,
+  proposeUsages,
+  toUsages,
+} from '@/lib/bambu/inbox';
 import { bambuTaskSchema, type BambuTask } from '@/lib/bambu/tasks';
 import { looseKey, normalizeText } from '@/lib/text';
 import {
@@ -1054,12 +1060,23 @@ export function bambuPrintInput(
 
 /** Valide automatiquement les tâches réussies dont toutes les bobines sont certaines. */
 export async function autoValidateBambu(db: FilaTrackDB = getDb()): Promise<number> {
+  const settings = await getSettings(db);
+  // Jamais l'historique : seules les impressions terminées après l'activation de l'option.
+  let since = settings.bambu.autoValidateSince;
+  if (!since) {
+    since = nowIso();
+    await saveSettings({ bambu: { ...settings.bambu, autoValidateSince: since } }, db);
+  }
   const pending = await db.bambuTasks.where('state').equals('pending').toArray();
   const spools = (await db.spools.toArray()).filter((s) => !s.deletedAt);
   const projects = await db.projects.toArray();
+  const prints = await db.prints.toArray();
   let n = 0;
   for (const item of pending) {
     const task = bambuTaskSchema.parse(item.task);
+    const end = task.endTime ?? task.startTime;
+    if (!end || end < since) continue;
+    if (findDuplicatePrint(task, prints)) continue;
     const proposals = proposeUsages(task, spools);
     if (!canAutoValidate(task, proposals)) continue;
     const m = matchTaskProject(task, projects);

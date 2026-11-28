@@ -1,7 +1,7 @@
 /** Boîte de réception : proposition de rattachement d'une tâche Bambu aux bobines. Fonctions pures. */
 import { colorDistance } from '../color';
 import { matchProject } from '../projects';
-import type { FilamentUsage, Project, Spool } from '../schemas';
+import type { FilamentUsage, PrintJob, Project, Spool } from '../schemas';
 import { rankCandidates } from '../slicer/match';
 import type { BambuTask } from './tasks';
 
@@ -113,4 +113,26 @@ export function matchTaskProject(
       ? task.plateIndex
       : null;
   return { ...m, plateIndex };
+}
+
+/**
+ * Impression déjà saisie (import Excel, saisie manuelle, import .3mf) qui correspond probablement
+ * à cette tâche : même jour et poids total à 5 % près (ou 2 g). Les impressions déjà liées à une
+ * tâche du cloud sont exclues.
+ */
+export function findDuplicatePrint(
+  task: Pick<BambuTask, 'startTime' | 'endTime' | 'weightG' | 'filaments'>,
+  prints: PrintJob[],
+): PrintJob | null {
+  const days = [task.startTime, task.endTime].filter(Boolean).map((d) => d!.slice(0, 10));
+  if (!days.length) return null;
+  const grams = task.weightG ?? task.filaments.reduce((a, f) => a + f.grams, 0);
+  return (
+    prints.find((p) => {
+      if (p.deletedAt || p.custom?.bambuTaskId || p.status === 'planned' || !p.date) return false;
+      if (!days.includes(p.date.slice(0, 10))) return false;
+      const g = p.usages.reduce((a, u) => a + u.grams, 0) || p.estimatedG || 0;
+      return grams > 0 && Math.abs(g - grams) <= Math.max(2, grams * 0.05);
+    }) ?? null
+  );
 }

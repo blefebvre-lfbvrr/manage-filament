@@ -5,7 +5,7 @@ import { CheckCircle2, CloudDownload, EyeOff, RotateCcw, TriangleAlert } from 'l
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
-import { useProjects, useSettings, useSpools } from '@/app/hooks';
+import { usePrints, useProjects, useSettings, useSpools } from '@/app/hooks';
 import { PageHeader } from '@/app/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Badge, Card } from '@/components/ui/card';
@@ -19,11 +19,17 @@ import {
   setBambuTaskState,
   validateBambuTask,
 } from '@/db/repo';
-import { matchTaskProject, proposeUsages, toUsages, type UsageProposal } from '@/lib/bambu/inbox';
+import {
+  findDuplicatePrint,
+  matchTaskProject,
+  proposeUsages,
+  toUsages,
+  type UsageProposal,
+} from '@/lib/bambu/inbox';
 import { bambuTaskSchema, HEARTBEAT_MS, type BambuTask } from '@/lib/bambu/tasks';
 import { formatDateTime, formatGrams } from '@/lib/format';
 import { formatDuration } from '@/lib/prints';
-import type { BambuInboxItem, Project, Spool } from '@/lib/schemas';
+import type { BambuInboxItem, PrintJob, Project, Spool } from '@/lib/schemas';
 import { CloudSyncButton } from '../projects/CloudSyncButton';
 import { ColorSwatch } from '../inventory/SpoolBits';
 import { SpoolSelect } from '../inventory/SpoolSelect';
@@ -58,6 +64,7 @@ export function InboxPage() {
   const items = useBambuInbox();
   const spools = useSpools() ?? [];
   const projects = useProjects() ?? [];
+  const prints = usePrints() ?? [];
   const settings = useSettings();
   const [tab, setTab] = useState<'pending' | 'validated' | 'ignored'>('pending');
   const [now] = useState(() => Date.now());
@@ -108,16 +115,30 @@ export function InboxPage() {
           <Checkbox
             checked={settings.bambu.autoValidate}
             onCheckedChange={async (v) => {
-              await saveSettings({ bambu: { ...settings.bambu, autoValidate: v === true } });
+              // L'historique déjà reçu n'est jamais validé automatiquement : seulement ce qui finit après.
+              await saveSettings({
+                bambu: {
+                  ...settings.bambu,
+                  autoValidate: v === true,
+                  autoValidateSince: v === true ? new Date().toISOString() : null,
+                },
+              });
               if (v === true) {
                 const n = await autoValidateBambu();
                 if (n) toast.success(`${n} impression(s) validée(s) automatiquement.`);
               }
             }}
           />
-          Valider automatiquement les impressions réussies quand toutes les bobines sont sûres (slot AMS et
-          couleur identiques)
+          Valider automatiquement les nouvelles impressions réussies quand toutes les bobines sont sûres (slot
+          AMS et couleur identiques)
         </label>
+        {settings.bambu.autoValidate && settings.bambu.autoValidateSince && (
+          <p className="text-muted-foreground text-xs">
+            Seulement les impressions terminées après le{' '}
+            {formatDateTime(settings.bambu.autoValidateSince, settings.dateFormat)}, et jamais celles qui
+            ressemblent à une impression déjà saisie : l’historique reste à valider à la main.
+          </p>
+        )}
       </Card>
 
       <div role="tablist" aria-label="État" className="mb-3 flex flex-wrap gap-2">
@@ -144,7 +165,7 @@ export function InboxPage() {
       <ul className="flex flex-col gap-3">
         {list.map((item) => (
           <li key={item.id}>
-            <InboxCard item={item} spools={spools} projects={projects} />
+            <InboxCard item={item} spools={spools} projects={projects} prints={prints} />
           </li>
         ))}
         {list.length === 0 && (
@@ -161,10 +182,12 @@ function InboxCard({
   item,
   spools,
   projects,
+  prints,
 }: {
   item: BambuInboxItem;
   spools: Spool[];
   projects: Project[];
+  prints: PrintJob[];
 }) {
   const settings = useSettings();
   const task = useMemo(() => {
@@ -173,6 +196,7 @@ function InboxCard({
   }, [item.task]);
   const initial = useMemo(() => (task ? proposeUsages(task, spools) : []), [task, spools]);
   const match = useMemo(() => (task ? matchTaskProject(task, projects) : null), [task, projects]);
+  const duplicate = task && item.state === 'pending' ? findDuplicatePrint(task, prints) : null;
   const [overrides, setOverrides] = useState<Record<number, string | null>>({});
   const [projectId, setProjectId] = useState<string | undefined>(undefined);
   const [percent, setPercent] = useState('');
@@ -238,6 +262,19 @@ function InboxCard({
         <Badge tone={st.tone}>{st.label}</Badge>
       </div>
 
+      {pending && duplicate && (
+        <p
+          role="note"
+          className="bg-warn/15 text-warn-foreground flex flex-wrap items-center gap-2 rounded-md p-2 text-sm"
+        >
+          <TriangleAlert className="size-4 shrink-0" aria-hidden />
+          <span className="flex-1">
+            Déjà saisie ? « {duplicate.name} » du {formatDateTime(duplicate.date, settings.dateFormat)}{' '}
+            consomme le même poids. Si c’est la même impression, ignore celle-ci pour ne pas déduire deux
+            fois.
+          </span>
+        </p>
+      )}
       {pending ? (
         <>
           <ul className="flex flex-col gap-2">
