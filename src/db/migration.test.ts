@@ -1,7 +1,7 @@
 import Dexie from 'dexie';
 import { FilaTrackDB } from './db';
 
-it('migration v1 → v2 : les données existantes sont conservées', async () => {
+it('migration v1 → v3 : les données existantes sont conservées', async () => {
   const name = 'migration-test';
   const v1 = new Dexie(name);
   v1.version(1).stores({
@@ -14,7 +14,7 @@ it('migration v1 → v2 : les données existantes sont conservées', async () =>
   v1.close();
 
   const db = new FilaTrackDB(name);
-  expect(db.verno).toBe(2);
+  expect(db.verno).toBe(3);
   expect(await db.spools.get('s1')).toMatchObject({ code: 'B01', remainingG: 300 });
   expect((await db.settings.get('app'))?.value).toEqual({ lowThresholdG: 150 });
   await db.shoppingItems.add({
@@ -28,5 +28,37 @@ it('migration v1 → v2 : les données existantes sont conservées', async () =>
     deletedAt: null,
   });
   expect(await db.shoppingItems.count()).toBe(1);
+  await db.delete();
+});
+
+it('migration v2 → v3 : les projets existants reçoivent statut, pièces et réservations', async () => {
+  const name = 'migration-v2-test';
+  const v2 = new Dexie(name);
+  v2.version(1).stores({
+    projects: 'id, name, updatedAt',
+    prints: 'id, status, date, projectId, legacyRow, updatedAt, deletedAt',
+  });
+  v2.version(2).stores({ shoppingItems: 'id, boughtAt, source, createdAt' });
+  await v2.table('projects').bulkAdd([
+    { id: 'p1', name: 'DeskShelf', archived: false },
+    { id: 'p2', name: 'HomeLab', archived: false },
+    { id: 'p3', name: 'Ancien', archived: true },
+  ]);
+  await v2.table('prints').add({ id: 'x1', projectId: 'p1', status: 'success' });
+  v2.close();
+
+  const db = new FilaTrackDB(name);
+  const [p1, p2, p3] = await Promise.all(['p1', 'p2', 'p3'].map((id) => db.projects.get(id)));
+  expect(p1).toMatchObject({
+    status: 'printing',
+    forSelf: true,
+    parts: [],
+    reservations: [],
+    pricing: { paymentStatus: 'unpaid' },
+    sync: { dirty: true },
+  });
+  expect(p2!.status).toBe('idea');
+  expect(p3!.status).toBe('done');
+  expect(await db.contacts.count()).toBe(0);
   await db.delete();
 });

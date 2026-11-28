@@ -4,6 +4,7 @@
  */
 import { buildCatalogSeed, BAMBU_DEFAULT_TARE_G } from './catalog-seed';
 import { initialMovements, makeMovement, roundG } from './movements';
+import { makeProject } from './project-factory';
 import type { AmsSlot, PrintJob, Project, Spool, SpoolStatus, StockMovement } from './schemas';
 
 function rng(seed: number) {
@@ -65,15 +66,17 @@ export function buildDemoData(now = new Date('2026-11-27T12:00:00Z')): DemoData 
   const iso = (daysAgo: number) => new Date(now.getTime() - daysAgo * 86400_000).toISOString();
   const stamp = (daysAgo: number) => ({ createdAt: iso(daysAgo), updatedAt: iso(daysAgo), deletedAt: null });
 
-  const projects: Project[] = PROJECTS.map((name, i) => ({
-    ...stamp(200),
-    id: `demo-project-${i + 1}`,
-    name,
-    color: null,
-    budget: i === 0 ? 60 : null,
-    archived: false,
-    notes: null,
-  }));
+  const projects: Project[] = PROJECTS.map((name, i) =>
+    makeProject(name, {
+      ...stamp(200),
+      id: `demo-project-${i + 1}`,
+      budget: i === 0 ? 60 : null,
+      status: i === 0 ? 'printing' : i === 1 ? 'delivered' : 'done',
+      forSelf: i !== 1,
+      code: i === 1 ? 'CADEAU' : null,
+      sync: undefined,
+    }),
+  );
 
   const spools: Spool[] = [];
   const movements: StockMovement[] = [];

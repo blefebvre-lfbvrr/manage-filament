@@ -6,6 +6,7 @@ import { findBrand, findColor, findProduct, extractManufacturerRef } from '../ca
 import { codePrefix, nextCode } from '../codes';
 import { normalizeHex } from '../color';
 import { newId } from '../ids';
+import { makeProject } from '../project-factory';
 import { roundG } from '../movements';
 import type {
   AmsSlot,
@@ -572,15 +573,7 @@ export function buildImportPlan(input: PlanInput): ImportPlan {
     const key = looseKey(name);
     let p = projectByKey.get(key);
     if (!p) {
-      p = {
-        ...stamp,
-        id: newId(),
-        name: name.trim(),
-        color: null,
-        budget: null,
-        archived: false,
-        notes: null,
-      };
+      p = makeProject(name, { createdAt: stamp.createdAt, updatedAt: stamp.updatedAt });
       projectByKey.set(key, p);
       plan.projects.push(p);
     }

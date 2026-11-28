@@ -3,6 +3,7 @@ import { makeBackup, TABLE_NAMES, type Backup, type TableName } from '@/lib/back
 import { buildCatalogSeed } from '@/lib/catalog-seed';
 import { codePrefix, nextCodes } from '@/lib/codes';
 import { buildDemoData } from '@/lib/demo';
+import { makeProject } from '@/lib/project-factory';
 import type { ImportPlan } from '@/lib/excel/plan';
 import { newId, nowIso } from '@/lib/ids';
 import { adjustmentTo, initialMovements, makeMovement, reverseMovement, sumMovements } from '@/lib/movements';
@@ -620,22 +621,11 @@ export async function restorePrint(printId: string, db: FilaTrackDB = getDb()): 
 }
 
 export async function createProject(name: string, db: FilaTrackDB = getDb()): Promise<Project> {
-  const now = nowIso();
   const existing = (await db.projects.toArray()).find(
     (p) => !p.deletedAt && p.name.trim().toLowerCase() === name.trim().toLowerCase(),
   );
   if (existing) return existing;
-  const p: Project = {
-    id: newId(),
-    name: name.trim(),
-    color: null,
-    budget: null,
-    archived: false,
-    notes: null,
-    createdAt: now,
-    updatedAt: now,
-    deletedAt: null,
-  };
+  const p: Project = makeProject(name);
   await db.projects.add(p);
   return p;
 }
