@@ -129,6 +129,9 @@ export const printJobSchema = baseEntity.extend({
   notes: optStr,
   /** Position dans l'Excel d'origine (ordre chronologique supposé). */
   legacyRow: optNum,
+  /** Pièce du projet et plateau imprimés (avancement du projet). */
+  projectPartId: optStr,
+  plateIndex: optNum,
   needsReview: z.boolean().optional(),
   reviewNote: optStr,
   /** La consommation de cette impression est actuellement déduite du stock. */
@@ -182,14 +185,129 @@ export const weighingSchema = baseEntity.extend({
 });
 export type Weighing = z.infer<typeof weighingSchema>;
 
-export const projectSchema = baseEntity.extend({
-  name: z.string().min(1),
+/* ------------------------------ Projets ------------------------------ */
+
+/** Filament d'un plateau, tel que lu dans le .3mf (ou saisi). */
+export const partFilamentSchema = z.object({
+  id: z.number().int(),
+  type: z.string().default(''),
   color: optStr,
-  budget: optNum,
-  archived: z.boolean().default(false),
+  productHint: optStr,
+  grams: z.number().nonnegative(),
+  lengthM: optNum,
+});
+export type PartFilament = z.infer<typeof partFilamentSchema>;
+
+export const partPlateSchema = z.object({
+  index: z.number().int(),
+  name: optStr,
+  predictionS: optNum,
+  filaments: z.array(partFilamentSchema).default([]),
+});
+export type PartPlate = z.infer<typeof partPlateSchema>;
+
+/** Pièce à imprimer : un .3mf importé (ou une saisie manuelle) × une quantité d'exemplaires. */
+export const projectPartSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  source: z.enum(['3mf', 'manual']).default('manual'),
+  fileName: optStr,
+  /** Pièce jointe locale (le fichier lui-même, s'il est conservé). */
+  fileId: optStr,
+  fileSize: optNum,
+  /** Chemin du fichier dans le dépôt de données, s'il y a été envoyé. */
+  remotePath: optStr,
+  quantity: z.number().int().positive().default(1),
+  plates: z.array(partPlateSchema).default([]),
   notes: optStr,
 });
+export type ProjectPart = z.infer<typeof projectPartSchema>;
+
+/** Réservation d'une bobine pour un projet (grammes encore nécessaires). */
+export const reservationSchema = z.object({
+  spoolId: z.string().min(1),
+  grams: z.number().nonnegative(),
+  note: optStr,
+});
+export type Reservation = z.infer<typeof reservationSchema>;
+
+export const PAYMENT_STATUSES = ['unpaid', 'partial', 'paid'] as const;
+
+export const projectPricingSchema = z.object({
+  /** Marge (%) appliquée au coût pour le prix suggéré ; sinon valeur des paramètres. */
+  marginPct: optNum,
+  finalPrice: optNum,
+  /** Temps de travail (préparation, post-traitement), en minutes. */
+  laborMinutes: optNum,
+  paymentStatus: z.enum(PAYMENT_STATUSES).default('unpaid'),
+  paidAmount: optNum,
+  paidAt: optStr,
+});
+export type ProjectPricing = z.infer<typeof projectPricingSchema>;
+
+export const syncMetaSchema = z.object({
+  /** Empreinte (sha) du fichier distant au dernier échange. */
+  sha: optStr,
+  syncedAt: optStr,
+  /** Modifié localement depuis le dernier envoi. */
+  dirty: z.boolean().default(false),
+});
+
+export const projectSchema = baseEntity.extend({
+  name: z.string().min(1),
+  /** Code court (ex. DUPONT) : un fichier « [DUPONT] support.3mf » est rattaché à ce projet. */
+  code: optStr,
+  description: optStr,
+  color: optStr,
+  tags: z.array(z.string()).default([]),
+  photoIds: z.array(z.string()).default([]),
+  /** Pour moi (true) ou pour un tiers (false, voir contactId). */
+  forSelf: z.boolean().default(true),
+  contactId: optStr,
+  /** Clé de statut (voir les statuts de projet dans les paramètres). */
+  status: z.string().default('idea'),
+  archived: z.boolean().default(false),
+  dueDate: optStr,
+  deliveredAt: optStr,
+  budget: optNum,
+  parts: z.array(projectPartSchema).default([]),
+  reservations: z.array(reservationSchema).default([]),
+  pricing: projectPricingSchema.default({ paymentStatus: 'unpaid' }),
+  notes: optStr,
+  /** Versions écrasées lors d'un conflit de synchronisation (rien n'est perdu). */
+  history: z.array(z.object({ at: z.string(), reason: z.string(), snapshot: z.unknown() })).default([]),
+  sync: syncMetaSchema.optional(),
+});
 export type Project = z.infer<typeof projectSchema>;
+
+/** Contact (client, ami, association) réutilisable d'un projet à l'autre. */
+export const contactSchema = baseEntity.extend({
+  name: z.string().min(1),
+  contact: optStr,
+  notes: optStr,
+  sync: syncMetaSchema.optional(),
+});
+export type Contact = z.infer<typeof contactSchema>;
+
+export const projectStatusDefSchema = z.object({
+  key: z.string().min(1),
+  label: z.string().min(1),
+  /** Les projets dans ce statut réservent du stock. */
+  reserves: z.boolean().default(false),
+  /** Statut « fini » (plus de réservation, avancement figé). */
+  closed: z.boolean().default(false),
+});
+export type ProjectStatusDef = z.infer<typeof projectStatusDefSchema>;
+
+export const DEFAULT_PROJECT_STATUSES: ProjectStatusDef[] = [
+  { key: 'idea', label: 'Idée', reserves: false, closed: false },
+  { key: 'quote', label: 'Devis', reserves: false, closed: false },
+  { key: 'validated', label: 'Validé', reserves: true, closed: false },
+  { key: 'printing', label: 'En impression', reserves: true, closed: false },
+  { key: 'done', label: 'Terminé', reserves: false, closed: true },
+  { key: 'delivered', label: 'Livré', reserves: false, closed: true },
+  { key: 'paid', label: 'Payé', reserves: false, closed: true },
+];
 
 export const purchaseSchema = baseEntity.extend({
   shop: optStr,
@@ -277,9 +395,44 @@ export const notificationSchema = baseEntity.extend({
   title: z.string(),
   body: optStr,
   link: optStr,
+  /** Lue / masquée par l'utilisateur. */
   readAt: optStr,
+  /** Notification navigateur déjà envoyée pour cette alerte. */
+  notifiedAt: optStr,
 });
 export type AppNotification = z.infer<typeof notificationSchema>;
+
+/** Ligne de la liste de courses (ajoutée à la main ou depuis un projet). */
+export const shoppingItemSchema = baseEntity.extend({
+  label: z.string().min(1),
+  brand: optStr,
+  productLine: optStr,
+  material: optStr,
+  colorName: optStr,
+  colorHex: optStr,
+  catalogProductId: optStr,
+  catalogColorId: optStr,
+  isRefill: z.boolean().default(false),
+  quantity: z.number().int().positive().default(1),
+  unitPrice: optNum,
+  productUrl: optStr,
+  source: z.enum(['manual', 'alert', 'project']).default('manual'),
+  sourceRef: optStr,
+  note: optStr,
+  boughtAt: optStr,
+});
+export type ShoppingItem = z.infer<typeof shoppingItemSchema>;
+
+/** Tâche du cloud Bambu reçue dans la boîte de réception « À valider ». */
+export const bambuInboxSchema = z.object({
+  id: z.string().min(1),
+  task: z.unknown(),
+  state: z.enum(['pending', 'validated', 'ignored']).default('pending'),
+  printId: optStr,
+  receivedAt: z.string(),
+  decidedAt: optStr,
+});
+export type BambuInboxItem = z.infer<typeof bambuInboxSchema>;
 
 export const importMappingSchema = baseEntity.extend({
   name: z.string(),
@@ -318,6 +471,65 @@ export const appSettingsSchema = z.object({
       pricePerKwh: z.number().default(0.2),
     })
     .default({ enabled: false, avgPowerW: 95, pricePerKwh: 0.2 }),
+  /** Disposition du tableau de bord (ordre et widgets masqués). */
+  dashboard: z
+    .object({ order: z.array(z.string()).default([]), hidden: z.array(z.string()).default([]) })
+    .default({ order: [], hidden: [] }),
+  /** Fenêtre (jours) pour la consommation moyenne utilisée par les prévisions de rupture. */
+  forecastWindowDays: z.number().int().positive().default(60),
+  /** Réglages des projets : marges, coûts horaires, arrondi du prix. */
+  projects: z
+    .object({
+      safetyMarginPct: z.number().nonnegative().default(10),
+      failMarginPct: z.number().nonnegative().default(5),
+      machineHourlyRate: z.number().nonnegative().default(0.3),
+      laborHourlyRate: z.number().nonnegative().default(15),
+      defaultMarginPct: z.number().nonnegative().default(30),
+      roundTo: z.number().nonnegative().default(0.5),
+      printHoursPerDay: z.number().positive().max(24).default(10),
+    })
+    .default({
+      safetyMarginPct: 10,
+      failMarginPct: 5,
+      machineHourlyRate: 0.3,
+      laborHourlyRate: 15,
+      defaultMarginPct: 30,
+      roundTo: 0.5,
+      printHoursPerDay: 10,
+    }),
+  projectStatuses: z.array(projectStatusDefSchema).default(DEFAULT_PROJECT_STATUSES),
+  /** Dépôt GitHub privé des données (le token reste dans le navigateur, hors sauvegardes). */
+  cloud: z
+    .object({
+      owner: z.string().default('blefebvre-lfbvrr'),
+      repo: z.string().default('manage-filament-data'),
+      branch: z.string().default('main'),
+      lastSyncAt: optStr,
+      autoSync: z.boolean().default(true),
+      /** Synchroniser aussi l'inventaire, les impressions, le catalogue… (une table = un fichier). */
+      syncAll: z.boolean().default(false),
+    })
+    .default({
+      owner: 'blefebvre-lfbvrr',
+      repo: 'manage-filament-data',
+      branch: 'main',
+      autoSync: true,
+      syncAll: false,
+    }),
+  /** Rappel de séchage des matériaux hygroscopiques ouverts (jours, 0 = désactivé). */
+  dryingReminderDays: z.number().int().nonnegative().default(30),
+  /** Inclure les bobines « bientôt vides » (pas seulement « à changer » / vides) dans la liste de courses. */
+  shoppingIncludeLow: z.boolean().default(false),
+  /** Notifications système du navigateur (en plus du centre de notifications). */
+  browserNotifications: z.boolean().default(false),
+  /** Synchro cloud Bambu : validation automatique des impressions dont la correspondance est sûre. */
+  bambu: z
+    .object({
+      autoValidate: z.boolean().default(false),
+      lastFileUpdatedAt: optStr,
+      lastCheckedAt: optStr,
+    })
+    .default({ autoValidate: false }),
   backupReminderDays: z.number().int().nonnegative().default(14),
   lastBackupAt: optStr,
 });

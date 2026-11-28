@@ -1,17 +1,11 @@
-import {
-  Boxes,
-  Database,
-  Download,
-  FlaskConical,
-  History,
-  Library,
-  Menu,
-  Package,
-  Printer,
-  Scale,
-  Settings,
-  SquareStack,
-} from 'lucide-react';
+import { Boxes, Download, FlaskConical, Menu, Search } from 'lucide-react';
+import { NAV } from './nav';
+import { CommandPalette, openPalette } from './CommandPalette';
+import { NotificationBell } from './NotificationBell';
+import { getGitHubToken } from '@/db/cloud';
+import { runSync } from '@/features/projects/CloudSyncButton';
+
+let syncedOnce = false;
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,30 +19,34 @@ import { getDataMode, getDb } from '@/db/db';
 import { isBackupDue } from '@/lib/backup';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
-import { useSettings } from './hooks';
+import { usePendingBambuCount, useSettings } from './hooks';
 import { useEffect } from 'react';
 import { applyTheme } from './theme';
-
-const NAV = [
-  { to: '/', label: 'Inventaire', icon: Package, end: true, mobile: true },
-  { to: '/ams', label: 'AMS', icon: SquareStack, mobile: true },
-  { to: '/prints', label: 'Impressions', icon: Printer, mobile: true },
-  { to: '/weigh', label: 'Pesée', icon: Scale, mobile: true },
-  { to: '/journal', label: 'Journal', icon: History },
-  { to: '/catalog', label: 'Catalogue', icon: Library },
-  { to: '/data', label: 'Import / Export', icon: Database },
-  { to: '/settings', label: 'Paramètres', icon: Settings },
-];
 
 export function Layout() {
   const settings = useSettings();
   const navigate = useNavigate();
   const demo = getDataMode() === 'demo';
   const spoolCount = useLiveQuery(() => getDb().spools.count(), [], 0);
+  const pending = usePendingBambuCount();
+  const badge = (to: string) =>
+    to === '/inbox' && pending > 0 ? (
+      <span className="bg-primary text-primary-foreground ml-auto rounded-full px-1.5 text-xs tabular-nums">
+        {pending}
+        <span className="sr-only"> à valider</span>
+      </span>
+    ) : null;
   const backupDue =
     isBackupDue(settings.lastBackupAt, settings.backupReminderDays, new Date(), spoolCount > 0) && !demo;
 
   useEffect(() => applyTheme(settings.theme), [settings.theme]);
+  // Synchronisation des projets au chargement (si un token GitHub est configuré).
+  const autoSync = settings.cloud.autoSync;
+  useEffect(() => {
+    if (!autoSync || demo || !getGitHubToken() || syncedOnce) return;
+    syncedOnce = true;
+    void runSync(true);
+  }, [autoSync, demo]);
 
   return (
     <div className="flex min-h-dvh flex-col md:flex-row">
@@ -58,10 +56,21 @@ export function Layout() {
       >
         Aller au contenu
       </a>
-      <aside className="bg-card hidden w-60 shrink-0 flex-col border-r md:flex">
-        <div className="flex items-center gap-2 px-5 py-5">
+      <aside className="bg-card hidden w-60 shrink-0 flex-col border-r md:flex print:hidden">
+        <div className="flex items-center gap-2 py-4 pr-2 pl-5">
           <Boxes className="text-primary size-6" aria-hidden />
           <span className="text-lg font-bold">FilaTrack</span>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="ml-auto"
+            aria-label="Rechercher (Ctrl+K)"
+            aria-keyshortcuts="Control+K"
+            onClick={openPalette}
+          >
+            <Search aria-hidden />
+          </Button>
+          <NotificationBell />
         </div>
         <nav aria-label="Navigation principale" className="flex flex-1 flex-col gap-1 px-3">
           {NAV.map((n) => (
@@ -78,6 +87,7 @@ export function Layout() {
             >
               <n.icon className="size-4" aria-hidden />
               {n.label}
+              {badge(n.to)}
             </NavLink>
           ))}
         </nav>
@@ -87,14 +97,25 @@ export function Layout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col pb-20 md:pb-0">
-        <header className="bg-background/95 sticky top-0 z-30 flex items-center gap-2 border-b px-4 py-3 backdrop-blur md:hidden">
+        <header className="bg-background/95 sticky top-0 z-30 flex items-center gap-2 border-b px-4 py-1.5 backdrop-blur md:hidden print:hidden">
           <Boxes className="text-primary size-5" aria-hidden />
           <span className="font-bold">FilaTrack</span>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="ml-auto"
+            aria-label="Rechercher (Ctrl+K)"
+            aria-keyshortcuts="Control+K"
+            onClick={openPalette}
+          >
+            <Search aria-hidden />
+          </Button>
+          <NotificationBell />
         </header>
         {demo && (
           <div
             role="status"
-            className="bg-warn/15 text-warn-foreground flex flex-wrap items-center gap-2 border-b px-4 py-2 text-sm"
+            className="bg-warn/15 text-warn-foreground flex flex-wrap items-center gap-2 border-b px-4 py-2 text-sm print:hidden"
           >
             <FlaskConical className="size-4" aria-hidden />
             <span>Mode démo : données fictives, tes vraies données ne sont pas touchées.</span>
@@ -111,7 +132,7 @@ export function Layout() {
         {backupDue && (
           <div
             role="status"
-            className="bg-primary/10 flex flex-wrap items-center gap-2 border-b px-4 py-2 text-sm"
+            className="bg-primary/10 flex flex-wrap items-center gap-2 border-b px-4 py-2 text-sm print:hidden"
           >
             <Download className="size-4" aria-hidden />
             <span>
@@ -136,7 +157,7 @@ export function Layout() {
 
       <nav
         aria-label="Navigation principale"
-        className="bg-card fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="bg-card fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t pb-[env(safe-area-inset-bottom)] md:hidden print:hidden"
       >
         {NAV.filter((n) => n.mobile).map((n) => (
           <NavLink
@@ -156,18 +177,25 @@ export function Layout() {
         ))}
         <DropdownMenu>
           <DropdownMenuTrigger className="text-muted-foreground flex flex-col items-center gap-0.5 px-1 py-2 text-[11px] font-medium">
-            <Menu className="size-5" aria-hidden />
-            <span>Plus</span>
+            <span className="relative">
+              <Menu className="size-5" aria-hidden />
+              {pending > 0 && (
+                <span className="bg-primary absolute -top-1 -right-1 size-2 rounded-full" aria-hidden />
+              )}
+            </span>
+            <span>Plus{pending > 0 && <span className="sr-only"> ({pending} à valider)</span>}</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" side="top">
             {NAV.filter((n) => !n.mobile).map((n) => (
               <DropdownMenuItem key={n.to} onSelect={() => navigate(n.to)}>
                 <n.icon aria-hidden /> {n.label}
+                {badge(n.to)}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
       </nav>
+      <CommandPalette />
       <Toaster richColors position="top-center" closeButton theme={settings.theme} />
     </div>
   );

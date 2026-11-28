@@ -77,3 +77,9 @@ export function usualPrice(
   if (!product) return null;
   return (isRefill ? product.refillPrice : product.defaultPrice) ?? product.defaultPrice ?? null;
 }
+
+export interface CatalogLike {
+  brands: CatalogBrand[];
+  products: CatalogProduct[];
+  colors: CatalogColor[];
+}

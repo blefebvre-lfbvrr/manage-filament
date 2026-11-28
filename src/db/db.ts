@@ -6,13 +6,16 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type {
   AlertRule,
+  BambuInboxItem,
   AppNotification,
   Attachment,
   CatalogBrand,
   CatalogColor,
   CatalogProduct,
+  Contact,
   CustomFieldDef,
   ImportMapping,
+  ShoppingItem,
   Location,
   PrintJob,
   Project,
@@ -24,7 +27,7 @@ import type {
   Weighing,
 } from '@/lib/schemas';
 
-export const DB_VERSION = 1;
+export const DB_VERSION = 4;
 
 export type DataMode = 'real' | 'demo';
 export const DB_NAMES: Record<DataMode, string> = { real: 'filatrack', demo: 'filatrack-demo' };
@@ -45,6 +48,9 @@ export class FilaTrackDB extends Dexie {
   alertRules!: EntityTable<AlertRule, 'id'>;
   notifications!: EntityTable<AppNotification, 'id'>;
   importMappings!: EntityTable<ImportMapping, 'id'>;
+  shoppingItems!: EntityTable<ShoppingItem, 'id'>;
+  contacts!: EntityTable<Contact, 'id'>;
+  bambuTasks!: EntityTable<BambuInboxItem, 'id'>;
   attachments!: EntityTable<Attachment, 'id'>;
   settings!: EntityTable<SettingRow, 'key'>;
 
@@ -71,6 +77,40 @@ export class FilaTrackDB extends Dexie {
       attachments: 'id',
       settings: 'key',
     });
+    // Version 2 — phase 4 : liste de courses ; index des notifications par lecture.
+    this.version(2).stores({
+      shoppingItems: 'id, boughtAt, source, createdAt',
+    });
+    // Version 3 — module Projets : contacts, statut et pièces des projets.
+    this.version(3)
+      .stores({
+        projects: 'id, name, status, contactId, updatedAt',
+        contacts: 'id, name, updatedAt',
+        prints: 'id, status, date, projectId, projectPartId, legacyRow, updatedAt, deletedAt',
+      })
+      .upgrade(async (tx) => {
+        const prints = await tx.table('prints').toArray();
+        await tx
+          .table('projects')
+          .toCollection()
+          .modify((p: Record<string, unknown>) => {
+            const used = prints.some(
+              (x: { projectId?: string; status?: string; deletedAt?: string | null }) =>
+                x.projectId === p.id && !x.deletedAt && x.status !== 'planned',
+            );
+            p.status ??= p.archived ? 'done' : used ? 'printing' : 'idea';
+            p.forSelf ??= true;
+            p.tags ??= [];
+            p.photoIds ??= [];
+            p.parts ??= [];
+            p.reservations ??= [];
+            p.pricing ??= { paymentStatus: 'unpaid' };
+            p.history ??= [];
+            p.sync ??= { dirty: true };
+          });
+      });
+    // Version 4 — synchro cloud Bambu : boîte de réception des impressions.
+    this.version(4).stores({ bambuTasks: 'id, state, receivedAt' });
     // Exemple pour une future version :
     // this.version(2).stores({ spools: '..., nouvelIndex' }).upgrade(tx => tx.table('spools').toCollection().modify(s => { ... }));
   }

@@ -55,6 +55,68 @@ _Captures réalisées avec les données de démonstration._
 - **Vue AMS lite** : 4 slots et le support externe. Glisser-déposer, ou toucher la bobine puis le slot, ou menu _Placer_ (au clavier).
 - **Journal global** des mouvements, avec filtres et annulation.
 
+**Tableau de bord et coûts** (phase 3)
+
+- Indicateurs : bobines et kg en stock, valeur du stock, consommation et dépenses de la période, coût moyen au kg, taux de réussite, bobines à surveiller.
+- Graphiques (chacun a aussi une vue tableau accessible) :
+  - consommation par jour, semaine ou mois ;
+  - stock par matériau et **par couleur, avec les vraies couleurs** ;
+  - dépenses par mois ;
+  - coût par projet ;
+  - filaments les plus utilisés.
+- **Prévision de rupture** par bobine, d’après la consommation moyenne récente (fenêtre réglable).
+- Sélecteur de période, filtres globaux (matériau, projet), widgets **réorganisables et masquables** (disposition enregistrée).
+- **Projets** : budget avec jauge, coût cumulé, filament, impressions faites et à faire, reste à imprimer.
+- **Coût électrique** optionnel (puissance moyenne × durée × prix du kWh), ajouté au coût des impressions et des projets.
+
+**Alertes et réapprovisionnement** (phase 4)
+
+- **Centre de notifications** (cloche avec badge) : bobines bientôt vides ou à changer, stocks minimum, séchage, pesées recommandées, sauvegarde. Notifications du navigateur en option.
+- **Règles de stock minimum** par bobine, matériau, gamme, couleur ou gamme + couleur (« garder au moins 2 PLA Basic Noir »), en nombre de bobines ou en grammes.
+- **Rappels de séchage** pour les matériaux hygroscopiques ouverts (PETG, TPU, ABS…), avec bouton « Séchée aujourd’hui » et température conseillée.
+- **Liste de courses** :
+  - suggestions automatiques (bobines vides ou à changer sans rechange, minimums non respectés) ;
+  - prix d’après ton historique d’achat ;
+  - lien vers la fiche produit ;
+  - export texte et CSV ;
+  - bouton « Acheté » qui ajoute les bobines au stock.
+- **Vérification avant impression** : alerte de stock dans la saisie, l’import `.3mf` et la file d’attente.
+
+**Projets** (phase 5)
+
+- Projets **pour moi ou pour des tiers** (contacts réutilisables), statuts personnalisables, échéance, livraison, tags. Détails dans [docs/projets.md](docs/projets.md).
+- **Pièces** depuis des `.3mf` découpés (plusieurs à la fois) ou saisies à la main, avec les quantités. **Avancement** calculé à partir des impressions rattachées.
+- **Analyse de faisabilité** :
+  - besoin avec marges ;
+  - stock disponible, réservations des autres projets déduites ;
+  - bobines identiques et alternatives proches ;
+  - liste de commande ;
+  - durée et date de fin.
+- **« Puis-je imprimer ça ? »** sans créer de projet.
+- **Réservation de bobines** pour un projet ; les réservations sont prises en compte dans les faisabilités.
+- **Coûts** : matière réelle, ratés, électricité, machine, main-d’œuvre. **Prix suggéré** avec marge et arrondi, prix final, marge réelle, paiement. **Devis et récapitulatif** en PDF.
+- Chiffre d’affaires et marge des projets pour des tiers.
+- **Synchronisation** des projets, contacts et `.3mf` dans le dépôt privé `manage-filament-data` : hors ligne d’abord, conflits fusionnés sans perte.
+
+**Synchro cloud Bambu Lab** (phase 6, facultative)
+
+- Historique des impressions récupéré par une GitHub Action planifiée, écrit dans le dépôt privé, proposé dans **« À valider »** (bobine par slot AMS puis couleur, projet par `[CODE]`, échecs au prorata, validation automatique optionnelle, jamais deux déductions).
+- Suivi temps réel MQTT en option (`npm run bambu-live`). Détails et limites : [sync-bambu/README.md](sync-bambu/README.md).
+
+**Étiquettes et mobile** (phase 7)
+
+- Étiquettes QR sur planches A4 ou étiquette seule, format personnalisé ; le QR ouvre la fiche de la bobine.
+- Scan par la caméra (ou une photo) avec actions rapides : peser, placer dans l’AMS, séchée.
+- Plaquette d’identification à imprimer en 3D (.stl).
+- Application installable (PWA) qui fonctionne hors ligne.
+
+**Personnalisation** (phase 8)
+
+- **Palette de commandes** `Ctrl+K` (ou ⌘K, ou la loupe) : pages, actions (nouvelle bobine, nouvelle impression, scanner, synchroniser, thème…), bobines, projets et impressions.
+- **Champs personnalisés** pour les bobines et les impressions (texte, nombre, date, liste, case à cocher) : création, renommage, ordre, masquage, dans Paramètres.
+- **Vues enregistrées** de l’inventaire : filtres, tri, colonnes et affichage rappelés en un clic.
+- **Synchronisation de toutes les données** avec le dépôt privé (option) : bobines, mouvements, impressions, pesées, catalogue, alertes, courses, champs et vues, pour utiliser FilaTrack sur plusieurs appareils. Une table = un fichier `data/<table>.json`, fusion enregistrement par enregistrement, restant recalculé à partir des mouvements.
+
 **Données**
 
 - **Import Excel**, détaillé dans [docs/import-excel.md](docs/import-excel.md) :
@@ -126,25 +188,38 @@ Chaque push sur `main` déclenche `.github/workflows/deploy.yml`, qui lance les 
 
 `ci.yml` exécute le lint, le formatage, la vérification des types, les tests avec couverture, le build et les tests Playwright sur chaque push et chaque pull request.
 
-## Pont imprimante (phase 7, optionnel)
+## Synchronisation cloud Bambu Lab (facultative)
 
-Le dossier [`bridge/`](bridge/README.md) contiendra un petit script Node.js local. Il écoutera l’imprimante en MQTT (mode LAN) pour créer automatiquement les impressions terminées et suivre les slots AMS. L’application fonctionne parfaitement sans lui.
+Une GitHub Action planifiée (toutes les 30 min) récupère l’historique des impressions de ton compte Bambu Lab via l’API cloud **non officielle**, et l’écrit dans le dépôt privé `manage-filament-data`. FilaTrack le récupère lors de la synchro et le propose dans **« À valider »** : bobine proposée par slot AMS puis par couleur, projet rattaché par préfixe `[CODE]`, échecs au prorata. Le stock n’est déduit qu’à la validation, une seule fois par impression. Un suivi temps réel MQTT est disponible en option (`npm run bambu-live`).
+
+Mise en place, secrets à créer et **limites** (API non officielle, blocage Cloudflare possible, token de 3 mois…) : voir [sync-bambu/README.md](sync-bambu/README.md).
 
 ## Feuille de route
 
 - [x] **Phase 1 — Socle** : modèle de données, inventaire, import/export Excel, sauvegarde, démo, déploiement.
 - [x] **Phase 2 — Consommation** : impressions et file d’attente, import `.3mf` / `.gcode`, déductions et annulation, mode pesée, vue AMS, journal global.
-- [ ] **Phase 3 — Dashboard et coûts** : KPI, graphiques avec les vraies couleurs, prévision de rupture, projets, électricité.
-- [ ] **Phase 4 — Alertes** : seuils par matériau ou couleur, liste de courses, rappels de séchage, vérification avant impression, notifications.
-- [ ] **Phase 5 — Étiquettes** : QR codes, planches A4, scan par caméra, PWA complète, plaquette STL.
-- [ ] **Phase 6 — Personnalisation** : gestion des champs personnalisés, vues enregistrées, widgets, palette Ctrl+K, synchronisation GitHub.
-- [ ] **Phase 7 — Pont MQTT** (optionnel).
+- [x] **Phase 3 — Dashboard et coûts** : KPI, graphiques avec les vraies couleurs, prévision de rupture, projets, électricité.
+- [x] **Phase 4 — Alertes** : seuils par matériau ou couleur, liste de courses, rappels de séchage, vérification avant impression, notifications.
+- [x] **Phase 5 — Projets** :
+  - pièces `.3mf`, avancement, faisabilité, réservations, liste de commande ;
+  - coûts, prix, devis ;
+  - stockage dans le dépôt privé.
+- [x] **Phase 6 — Synchro cloud Bambu** :
+  - script et GitHub Action ;
+  - boîte de réception « À valider » ;
+  - rattachement aux projets ;
+  - option MQTT temps réel.
+- [x] **Phase 7 — Étiquettes** : QR codes, planches A4, scan par caméra, PWA complète, plaquette STL.
+- [x] **Phase 8 — Personnalisation** : gestion des champs personnalisés, vues enregistrées, palette Ctrl+K, synchronisation de toutes les données.
 
 ## Documentation
 
 - [Modèle de données](docs/data-model.md)
 - [Import Excel : règles de correspondance](docs/import-excel.md)
 - [Import des impressions .3mf / .gcode](docs/import-impressions.md)
+- [Module Projets : faisabilité, coûts, synchronisation](docs/projets.md)
+- [Étiquettes QR, scan, plaquette STL et PWA](docs/etiquettes.md)
+- [Synchro cloud Bambu Lab](sync-bambu/README.md)
 - [CHANGELOG](CHANGELOG.md)
 
 ## Licence

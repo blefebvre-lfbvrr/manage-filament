@@ -4,7 +4,19 @@
  */
 import { buildCatalogSeed, BAMBU_DEFAULT_TARE_G } from './catalog-seed';
 import { initialMovements, makeMovement, roundG } from './movements';
-import type { AmsSlot, PrintJob, Project, Spool, SpoolStatus, StockMovement } from './schemas';
+import { makeProject } from './project-factory';
+import type { BambuTask } from './bambu/tasks';
+import type {
+  AmsSlot,
+  BambuInboxItem,
+  Contact,
+  PartPlate,
+  PrintJob,
+  Project,
+  Spool,
+  SpoolStatus,
+  StockMovement,
+} from './schemas';
 
 function rng(seed: number) {
   let s = seed >>> 0;
@@ -19,6 +31,8 @@ export interface DemoData {
   prints: PrintJob[];
   movements: StockMovement[];
   projects: Project[];
+  contacts: Contact[];
+  bambuTasks: BambuInboxItem[];
 }
 
 const DEMO_SPOOLS: [
@@ -65,15 +79,88 @@ export function buildDemoData(now = new Date('2026-11-27T12:00:00Z')): DemoData 
   const iso = (daysAgo: number) => new Date(now.getTime() - daysAgo * 86400_000).toISOString();
   const stamp = (daysAgo: number) => ({ createdAt: iso(daysAgo), updatedAt: iso(daysAgo), deletedAt: null });
 
-  const projects: Project[] = PROJECTS.map((name, i) => ({
-    ...stamp(200),
-    id: `demo-project-${i + 1}`,
-    name,
-    color: null,
-    budget: i === 0 ? 60 : null,
-    archived: false,
-    notes: null,
-  }));
+  const projects: Project[] = PROJECTS.map((name, i) =>
+    makeProject(name, {
+      ...stamp(200),
+      id: `demo-project-${i + 1}`,
+      budget: i === 0 ? 60 : null,
+      status: i === 0 ? 'printing' : i === 1 ? 'delivered' : 'done',
+      forSelf: i !== 1,
+      code: i === 1 ? 'CADEAU' : null,
+      sync: undefined,
+    }),
+  );
+  const plate = (predictionS: number, filaments: [string, string, number][]): PartPlate[] => [
+    {
+      index: 1,
+      name: null,
+      predictionS,
+      filaments: filaments.map(([productHint, color, grams], id) => ({
+        id: id + 1,
+        type: productHint.split(' ')[0]!,
+        color,
+        productHint,
+        grams,
+        lengthM: Math.round((grams / 2.98) * 100) / 100,
+      })),
+    },
+  ];
+  const contacts: Contact[] = [
+    {
+      ...stamp(120),
+      id: 'demo-contact-1',
+      name: 'Mme Dupont',
+      contact: 'dupont@example.com',
+      notes: 'Cliente de la micro-entreprise',
+    },
+  ];
+  Object.assign(projects[0]!, {
+    description: 'Boîtes et tiroirs pour ranger l’atelier.',
+    dueDate: iso(-10).slice(0, 10),
+    parts: [
+      {
+        id: 'demo-part-1',
+        name: 'Boîte à vis',
+        source: '3mf',
+        fileName: 'boite-a-vis.gcode.3mf',
+        quantity: 4,
+        plates: plate(7200, [['PLA Basic', '#000000', 85]]),
+      },
+      {
+        id: 'demo-part-2',
+        name: 'Tiroir',
+        source: '3mf',
+        fileName: 'tiroir.gcode.3mf',
+        quantity: 2,
+        plates: plate(14400, [
+          ['PLA Matte', '#000000', 160],
+          ['PLA Basic', '#C12E1F', 20],
+        ]),
+      },
+    ],
+  });
+  Object.assign(projects[1]!, {
+    description: 'Porte-clés personnalisés pour un mariage.',
+    contactId: 'demo-contact-1',
+    deliveredAt: iso(25).slice(0, 10),
+    parts: [
+      {
+        id: 'demo-part-3',
+        name: 'Porte-clés',
+        source: 'manual',
+        quantity: 10,
+        plates: plate(1800, [['PLA Basic', '#FF9016', 12]]),
+      },
+    ],
+    pricing: {
+      paymentStatus: 'paid',
+      finalPrice: 85,
+      paidAmount: 85,
+      paidAt: iso(20).slice(0, 10),
+      marginPct: 40,
+      laborMinutes: 60,
+    },
+  });
 
   const spools: Spool[] = [];
   const movements: StockMovement[] = [];
@@ -212,5 +299,50 @@ export function buildDemoData(now = new Date('2026-11-27T12:00:00Z')): DemoData 
   for (const s of spools) {
     s.remainingG = roundG(movements.filter((m) => m.spoolId === s.id).reduce((a, m) => a + m.deltaG, 0));
   }
-  return { spools, prints, movements, projects };
+  // Impressions « reçues du cloud Bambu », en attente de validation.
+  const hex = (i: number) => spools[i]!.colorHex ?? null;
+  const task = (id: string, title: string, hoursAgo: number, o: Partial<BambuTask>): BambuInboxItem => {
+    const end = new Date(now.getTime() - hoursAgo * 3600_000);
+    return {
+      id,
+      state: 'pending',
+      printId: null,
+      receivedAt: end.toISOString(),
+      decidedAt: null,
+      task: {
+        id,
+        title,
+        plateName: null,
+        plateIndex: 1,
+        deviceName: 'A1 Combo',
+        deviceModel: 'N2S',
+        startTime: new Date(end.getTime() - 5400_000).toISOString(),
+        endTime: end.toISOString(),
+        durationS: 5400,
+        status: 'success',
+        statusRaw: '2',
+        weightG: 31.2,
+        lengthMm: null,
+        filaments: [{ slot: 0, type: 'PLA', color: hex(0), filamentId: 'GFA00', grams: 31.2 }],
+        ...o,
+      } satisfies BambuTask,
+    };
+  };
+  const bambuTasks = [
+    task('demo-bambu-1', 'Support casque v2', 3, {}),
+    task('demo-bambu-2', '[CADEAU] Pot à crayons', 20, {
+      weightG: 58.4,
+      filaments: [
+        { slot: 1, type: 'PLA', color: hex(1), filamentId: 'GFA00', grams: 50.1 },
+        { slot: 2, type: 'PLA', color: hex(2), filamentId: 'GFA00', grams: 8.3 },
+      ],
+    }),
+    task('demo-bambu-3', 'Engrenage PETG', 30, {
+      status: 'failed',
+      statusRaw: '3',
+      weightG: 24,
+      filaments: [{ slot: 3, type: 'PETG', color: hex(3), filamentId: 'GFG02', grams: 24 }],
+    }),
+  ];
+  return { spools, prints, movements, projects, contacts, bambuTasks };
 }

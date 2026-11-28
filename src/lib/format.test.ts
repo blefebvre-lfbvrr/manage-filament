@@ -8,6 +8,8 @@ describe('formatage français', () => {
     expect(nbsp(formatGrams(12500))).toBe('12,5 kg');
     expect(nbsp(formatGrams(2500, 'kg'))).toBe('2,5 kg');
     expect(formatGrams(null)).toBe('—');
+    expect(nbsp(formatGrams(-0.01))).toBe('0 g');
+    expect(nbsp(formatPercent(-0.001))).toBe('0 %');
   });
   it('monnaie, pourcentage, dates', () => {
     expect(nbsp(formatMoney(25.99))).toBe('25,99 €');

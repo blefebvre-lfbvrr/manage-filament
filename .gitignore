@@ -21,8 +21,8 @@ filatrack-backup*.json
 .env.*
 !.env.example
 *.token
-bridge/config.json
-bridge/.env
+sync-bambu/.secrets.json
+sync-bambu/out/
 
 # Divers
 .DS_Store

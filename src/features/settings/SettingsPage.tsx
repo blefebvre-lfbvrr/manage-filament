@@ -11,6 +11,10 @@ import { Switch } from '@/components/ui/switch';
 import { getDataMode, setDataMode } from '@/db/db';
 import { saveSettings } from '@/db/repo';
 import type { AppSettings } from '@/lib/schemas';
+import { CloudSettings } from './CloudSettings';
+import { CustomFieldsSettings } from './CustomFieldsSettings';
+import { InstallCard } from './InstallCard';
+import { ProjectSettings } from './ProjectSettings';
 
 const CURRENCIES = ['EUR', 'CHF', 'USD', 'GBP', 'CAD'];
 const DATE_FORMATS = ['dd/MM/yyyy', 'dd/MM/yy', 'd MMM yyyy', 'yyyy-MM-dd'];
@@ -100,6 +104,8 @@ export function SettingsPage() {
           </CardContent>
         </Card>
 
+        <InstallCard />
+
         <Card>
           <CardHeader>
             <CardTitle>Affichage</CardTitle>
@@ -165,7 +171,7 @@ export function SettingsPage() {
           <CardHeader>
             <CardTitle>Électricité</CardTitle>
             <CardDescription>
-              Pour le coût total des impressions (utilisé à partir de la phase 3).
+              Ajoute au coût de chaque impression : puissance moyenne × durée × prix du kWh.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-3">
@@ -208,6 +214,85 @@ export function SettingsPage() {
 
         <Card>
           <CardHeader>
+            <CardTitle>Alertes et notifications</CardTitle>
+            <CardDescription>
+              Les alertes apparaissent dans la cloche et sur la page Alertes. Les notifications du navigateur
+              sont facultatives.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <Field
+              label="Rappel de séchage (jours, 0 = désactivé)"
+              htmlFor="drying"
+              hint="PETG, TPU, ABS… ouverts sans séchage depuis ce nombre de jours"
+            >
+              <Input
+                id="drying"
+                type="number"
+                min={0}
+                defaultValue={settings.dryingReminderDays}
+                key={`d${settings.dryingReminderDays}`}
+                onBlur={(e) =>
+                  void save({ dryingReminderDays: Math.max(0, Math.floor(Number(e.target.value) || 0)) })
+                }
+              />
+            </Field>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="browser-notif"
+                checked={settings.browserNotifications}
+                onCheckedChange={async (v) => {
+                  if (v) {
+                    if (typeof Notification === 'undefined') {
+                      toast.error(
+                        'Ce navigateur ne gère pas les notifications. Sur iPhone, installe d’abord l’application sur l’écran d’accueil.',
+                      );
+                      return;
+                    }
+                    const perm =
+                      Notification.permission === 'granted'
+                        ? 'granted'
+                        : await Notification.requestPermission();
+                    if (perm !== 'granted') {
+                      toast.error('Notifications refusées par le navigateur.');
+                      return;
+                    }
+                  }
+                  void save({ browserNotifications: v });
+                }}
+              />
+              <Label htmlFor="browser-notif">Notifications du navigateur (alertes importantes)</Label>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Prévisions</CardTitle>
+            <CardDescription>
+              La date de rupture d’une bobine est estimée d’après sa consommation moyenne récente.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Field label="Fenêtre de calcul (jours)" htmlFor="fcw">
+              <Input
+                id="fcw"
+                type="number"
+                min={7}
+                max={365}
+                defaultValue={settings.forecastWindowDays}
+                key={`f${settings.forecastWindowDays}`}
+                onBlur={(e) => {
+                  const v = Math.max(7, Math.min(365, Math.floor(Number(e.target.value) || 60)));
+                  void save({ forecastWindowDays: v });
+                }}
+              />
+            </Field>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Sauvegarde</CardTitle>
           </CardHeader>
           <CardContent>
@@ -226,6 +311,10 @@ export function SettingsPage() {
             </Field>
           </CardContent>
         </Card>
+
+        <ProjectSettings />
+        <CloudSettings />
+        <CustomFieldsSettings />
 
         <Card id="demo" className="lg:col-span-2">
           <CardHeader>

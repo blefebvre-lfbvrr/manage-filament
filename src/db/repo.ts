@@ -3,11 +3,23 @@ import { makeBackup, TABLE_NAMES, type Backup, type TableName } from '@/lib/back
 import { buildCatalogSeed } from '@/lib/catalog-seed';
 import { codePrefix, nextCodes } from '@/lib/codes';
 import { buildDemoData } from '@/lib/demo';
+import { makeProject } from '@/lib/project-factory';
 import type { ImportPlan } from '@/lib/excel/plan';
 import { newId, nowIso } from '@/lib/ids';
 import { adjustmentTo, initialMovements, makeMovement, reverseMovement, sumMovements } from '@/lib/movements';
+import type { Alert } from '@/lib/alerts';
+import { canAutoValidate, proposeUsages, toUsages } from '@/lib/bambu/inbox';
+import { bambuTaskSchema, type BambuTask } from '@/lib/bambu/tasks';
+import { matchProject } from '@/lib/projects';
+import { looseKey, normalizeText } from '@/lib/text';
 import {
   appSettingsSchema,
+  type Contact,
+  type CustomFieldDef,
+  type SavedView,
+  type ProjectPart,
+  type AlertRule,
+  type ShoppingItem,
   type PrintJob,
   type Project,
   type Weighing,
@@ -29,7 +41,18 @@ const SETTINGS_KEY = 'app';
 export async function ensureSeed(db: FilaTrackDB = getDb()): Promise<void> {
   await db.transaction(
     'rw',
-    [db.brands, db.products, db.colors, db.spools, db.prints, db.movements, db.projects, db.settings],
+    [
+      db.brands,
+      db.products,
+      db.colors,
+      db.spools,
+      db.prints,
+      db.movements,
+      db.projects,
+      db.contacts,
+      db.bambuTasks,
+      db.settings,
+    ],
     async () => {
       const seeded = await db.settings.get('catalogSeeded');
       if (!seeded) {
@@ -45,6 +68,8 @@ export async function ensureSeed(db: FilaTrackDB = getDb()): Promise<void> {
         await db.prints.bulkPut(demo.prints);
         await db.movements.bulkPut(demo.movements);
         await db.projects.bulkPut(demo.projects);
+        await db.contacts.bulkPut(demo.contacts);
+        await db.bambuTasks.bulkPut(demo.bambuTasks);
       }
     },
   );
@@ -617,22 +642,11 @@ export async function restorePrint(printId: string, db: FilaTrackDB = getDb()): 
 }
 
 export async function createProject(name: string, db: FilaTrackDB = getDb()): Promise<Project> {
-  const now = nowIso();
   const existing = (await db.projects.toArray()).find(
     (p) => !p.deletedAt && p.name.trim().toLowerCase() === name.trim().toLowerCase(),
   );
   if (existing) return existing;
-  const p: Project = {
-    id: newId(),
-    name: name.trim(),
-    color: null,
-    budget: null,
-    archived: false,
-    notes: null,
-    createdAt: now,
-    updatedAt: now,
-    deletedAt: null,
-  };
+  const p: Project = makeProject(name);
   await db.projects.add(p);
   return p;
 }
@@ -747,4 +761,415 @@ export async function saveAttachment(blob: Blob, name: string, db: FilaTrackDB =
     deletedAt: null,
   });
   return id;
+}
+
+/* ------------------------------- Alertes ------------------------------- */
+
+export type AlertRuleInput = Omit<AlertRule, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'> & {
+  id?: string;
+};
+
+export async function saveAlertRule(input: AlertRuleInput, db: FilaTrackDB = getDb()): Promise<AlertRule> {
+  const now = nowIso();
+  const existing = input.id ? await db.alertRules.get(input.id) : undefined;
+  const rule: AlertRule = {
+    ...input,
+    id: existing?.id ?? newId(),
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+    deletedAt: null,
+  };
+  await db.alertRules.put(rule);
+  return rule;
+}
+
+export async function deleteAlertRule(id: string, db: FilaTrackDB = getDb()): Promise<void> {
+  await db.alertRules.update(id, { deletedAt: nowIso(), updatedAt: nowIso() });
+}
+
+/** Mémorise qu'une alerte a été lue (elle sort du compteur jusqu'à ce que la situation change). */
+export async function markAlertsRead(
+  alerts: Pick<Alert, 'key' | 'kind' | 'title' | 'body' | 'link'>[],
+  db: FilaTrackDB = getDb(),
+): Promise<void> {
+  const now = nowIso();
+  await db.transaction('rw', db.notifications, async () => {
+    for (const a of alerts) {
+      const cur = await db.notifications.get(a.key);
+      await db.notifications.put({
+        ...(cur ?? {
+          id: a.key,
+          kind: a.kind,
+          title: a.title,
+          body: a.body,
+          link: a.link,
+          createdAt: now,
+          deletedAt: null,
+        }),
+        readAt: now,
+        updatedAt: now,
+      });
+    }
+  });
+}
+
+export async function markAlertsNotified(
+  alerts: Pick<Alert, 'key' | 'kind' | 'title' | 'body' | 'link'>[],
+  db: FilaTrackDB = getDb(),
+): Promise<void> {
+  const now = nowIso();
+  await db.transaction('rw', db.notifications, async () => {
+    for (const a of alerts) {
+      const cur = await db.notifications.get(a.key);
+      await db.notifications.put({
+        ...(cur ?? {
+          id: a.key,
+          kind: a.kind,
+          title: a.title,
+          body: a.body,
+          link: a.link,
+          createdAt: now,
+          deletedAt: null,
+          readAt: null,
+        }),
+        notifiedAt: now,
+        updatedAt: now,
+      });
+    }
+  });
+}
+
+/** Bobine séchée aujourd'hui (réinitialise le rappel de séchage). */
+export async function markDried(
+  spoolId: string,
+  note?: string | null,
+  db: FilaTrackDB = getDb(),
+): Promise<void> {
+  await db.spools.update(spoolId, {
+    lastDriedAt: nowIso().slice(0, 10),
+    ...(note ? { humidityNote: note } : {}),
+    updatedAt: nowIso(),
+  });
+}
+
+/* --------------------------- Liste de courses --------------------------- */
+
+export type ShoppingItemInput = Omit<
+  ShoppingItem,
+  'id' | 'createdAt' | 'updatedAt' | 'deletedAt' | 'boughtAt'
+> & { id?: string };
+
+export async function addShoppingItem(
+  input: ShoppingItemInput,
+  db: FilaTrackDB = getDb(),
+): Promise<ShoppingItem> {
+  const now = nowIso();
+  // Même article déjà dans la liste (non acheté) : on augmente la quantité.
+  const same = (await db.shoppingItems.toArray()).find(
+    (i) =>
+      !i.deletedAt &&
+      !i.boughtAt &&
+      i.label === input.label &&
+      i.isRefill === input.isRefill &&
+      (i.catalogColorId ?? null) === (input.catalogColorId ?? null),
+  );
+  if (same) {
+    const quantity = same.quantity + input.quantity;
+    await db.shoppingItems.update(same.id, { quantity, updatedAt: now });
+    return { ...same, quantity };
+  }
+  const item: ShoppingItem = {
+    ...input,
+    id: input.id ?? newId(),
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+    boughtAt: null,
+  };
+  await db.shoppingItems.add(item);
+  return item;
+}
+
+export async function updateShoppingItem(
+  id: string,
+  patch: Partial<ShoppingItem>,
+  db: FilaTrackDB = getDb(),
+): Promise<void> {
+  await db.shoppingItems.update(id, { ...patch, updatedAt: nowIso() });
+}
+
+export async function removeShoppingItem(id: string, db: FilaTrackDB = getDb()): Promise<void> {
+  await db.shoppingItems.update(id, { deletedAt: nowIso(), updatedAt: nowIso() });
+}
+
+/* ------------------------------- Projets ------------------------------- */
+
+/** Enregistre un projet (marqué « à synchroniser »). */
+export async function saveProject(project: Project, db: FilaTrackDB = getDb()): Promise<Project> {
+  const next: Project = { ...project, updatedAt: nowIso(), sync: { ...project.sync, dirty: true } };
+  await db.projects.put(next);
+  return next;
+}
+
+export async function updateProject(
+  id: string,
+  patch: Partial<Project>,
+  db: FilaTrackDB = getDb(),
+): Promise<Project> {
+  const cur = await db.projects.get(id);
+  if (!cur) throw new Error('Projet introuvable.');
+  return saveProject({ ...cur, ...patch }, db);
+}
+
+export async function deleteProject(id: string, db: FilaTrackDB = getDb()): Promise<void> {
+  await updateProject(id, { deletedAt: nowIso() }, db);
+}
+
+export async function saveContact(
+  input: Omit<Contact, 'createdAt' | 'updatedAt' | 'deletedAt' | 'id'> & { id?: string },
+  db: FilaTrackDB = getDb(),
+): Promise<Contact> {
+  const now = nowIso();
+  const cur = input.id ? await db.contacts.get(input.id) : undefined;
+  const c: Contact = {
+    ...input,
+    id: cur?.id ?? newId(),
+    createdAt: cur?.createdAt ?? now,
+    updatedAt: now,
+    deletedAt: null,
+    sync: { ...cur?.sync, dirty: true },
+  };
+  await db.contacts.put(c);
+  return c;
+}
+
+/** Ajoute une pièce à un projet (depuis un .3mf lu, ou saisie manuelle). */
+export async function addProjectPart(
+  projectId: string,
+  part: Omit<ProjectPart, 'id'>,
+  file?: File | Blob | null,
+  db: FilaTrackDB = getDb(),
+): Promise<ProjectPart> {
+  const created: ProjectPart = { ...part, id: newId() };
+  if (file) created.fileId = await saveAttachment(file, part.fileName ?? 'fichier.3mf', db);
+  const p = await db.projects.get(projectId);
+  if (!p) throw new Error('Projet introuvable.');
+  await saveProject({ ...p, parts: [...p.parts, created] }, db);
+  return created;
+}
+
+/** Réserve des bobines pour un projet (remplace les réservations existantes). */
+export async function setReservations(
+  projectId: string,
+  reservations: Project['reservations'],
+  db: FilaTrackDB = getDb(),
+): Promise<void> {
+  await updateProject(projectId, { reservations: reservations.filter((r) => r.grams > 0) }, db);
+}
+
+/* ---------------------------- Boîte de réception Bambu ---------------------------- */
+
+/** Ajoute les nouvelles tâches du cloud (une tâche déjà connue n'est jamais réimportée ni redéduite). */
+export async function importBambuTasks(tasks: BambuTask[], db: FilaTrackDB = getDb()): Promise<number> {
+  let added = 0;
+  await db.transaction('rw', db.bambuTasks, async () => {
+    for (const t of tasks) {
+      const cur = await db.bambuTasks.get(t.id);
+      if (!cur) {
+        await db.bambuTasks.add({
+          id: t.id,
+          task: t,
+          state: 'pending',
+          printId: null,
+          receivedAt: nowIso(),
+          decidedAt: null,
+        });
+        added++;
+      } else if (cur.state === 'pending') await db.bambuTasks.update(t.id, { task: t });
+    }
+  });
+  return added;
+}
+
+/** Valide une tâche : crée l'impression (et déduit le stock) une seule fois. */
+export async function validateBambuTask(
+  id: string,
+  print: PrintInput,
+  db: FilaTrackDB = getDb(),
+): Promise<PrintJob> {
+  return db.transaction('rw', db.bambuTasks, db.prints, db.movements, db.spools, async () => {
+    const item = await db.bambuTasks.get(id);
+    if (!item) throw new Error('Impression introuvable dans la boîte de réception.');
+    if (item.state === 'validated') throw new Error('Impression déjà validée.');
+    const saved = await savePrint({ ...print, custom: { ...print.custom, bambuTaskId: id } }, {}, db);
+    await db.bambuTasks.update(id, { state: 'validated', printId: saved.id, decidedAt: nowIso() });
+    return saved;
+  });
+}
+
+export async function setBambuTaskState(
+  id: string,
+  state: 'pending' | 'ignored',
+  db: FilaTrackDB = getDb(),
+): Promise<void> {
+  const item = await db.bambuTasks.get(id);
+  if (item?.state === 'validated')
+    throw new Error('Impression déjà validée : supprime l’impression pour l’annuler.');
+  await db.bambuTasks.update(id, { state, decidedAt: state === 'ignored' ? nowIso() : null });
+}
+
+/** Construit l'impression proposée pour une tâche du cloud. */
+export function bambuPrintInput(
+  task: BambuTask,
+  usages: PrintInput['usages'],
+  projectId: string | null,
+  failedAtPercent: number | null,
+): PrintInput {
+  const status = task.status === 'success' ? 'success' : task.status === 'cancelled' ? 'cancelled' : 'failed';
+  return {
+    name: task.title,
+    date: (task.endTime ?? task.startTime)?.slice(0, 10) ?? null,
+    durationMin: task.durationS != null ? Math.round(task.durationS / 60) : null,
+    projectId,
+    plate: task.plateName ?? (task.plateIndex != null ? `Plateau ${task.plateIndex}` : null),
+    status,
+    failedAtPercent: status === 'success' ? null : failedAtPercent,
+    estimatedG: task.weightG ?? null,
+    usages,
+    energyKwh: null,
+    sourceFileId: null,
+    photoIds: [],
+    notes: `Synchro cloud Bambu${task.deviceName ? ` (${task.deviceName})` : ''}`,
+    legacyRow: null,
+    needsReview: false,
+    reviewNote: null,
+    custom: {},
+  };
+}
+
+/** Valide automatiquement les tâches réussies dont toutes les bobines sont certaines. */
+export async function autoValidateBambu(db: FilaTrackDB = getDb()): Promise<number> {
+  const pending = await db.bambuTasks.where('state').equals('pending').toArray();
+  const spools = (await db.spools.toArray()).filter((s) => !s.deletedAt);
+  const projects = await db.projects.toArray();
+  let n = 0;
+  for (const item of pending) {
+    const task = bambuTaskSchema.parse(item.task);
+    const proposals = proposeUsages(task, spools);
+    if (!canAutoValidate(task, proposals)) continue;
+    const m = matchProject(task.title, projects);
+    await validateBambuTask(
+      item.id,
+      {
+        ...bambuPrintInput(task, toUsages(task, proposals), m?.project.id ?? null, null),
+        projectPartId: m?.part?.id ?? null,
+      },
+      db,
+    );
+    n++;
+  }
+  return n;
+}
+
+/* ---------------------------- Champs personnalisés ---------------------------- */
+
+export type CustomFieldInputDef = Pick<CustomFieldDef, 'entity' | 'label' | 'type' | 'options'> & {
+  id?: string;
+};
+
+/** Crée ou modifie un champ ; la clé (stockée dans `custom`) est dérivée du libellé et ne change plus ensuite. */
+export async function saveCustomFieldDef(
+  input: CustomFieldInputDef,
+  db: FilaTrackDB = getDb(),
+): Promise<CustomFieldDef> {
+  const label = input.label.trim();
+  if (!label) throw new Error('Libellé requis.');
+  const all = (await db.customFieldDefs.toArray()).filter((d) => d.entity === input.entity);
+  const options =
+    input.type === 'list' ? [...new Set(input.options.map((o) => o.trim()).filter(Boolean))] : [];
+  if (input.type === 'list' && !options.length) throw new Error('Ajoute au moins une valeur à la liste.');
+  if (all.some((d) => !d.deletedAt && d.id !== input.id && normalizeText(d.label) === normalizeText(label)))
+    throw new Error('Un champ porte déjà ce nom.');
+  const now = nowIso();
+  const cur = input.id ? await db.customFieldDefs.get(input.id) : undefined;
+  if (cur) {
+    const next = { ...cur, label, type: input.type, options, updatedAt: now };
+    await db.customFieldDefs.put(next);
+    return next;
+  }
+  const base = looseKey(label).replace(/ /g, '_') || 'champ';
+  let key = base;
+  for (let i = 2; all.some((d) => d.key === key); i++) key = `${base}_${i}`;
+  const def: CustomFieldDef = {
+    id: newId(),
+    entity: input.entity,
+    key,
+    label,
+    type: input.type,
+    options,
+    order: Math.max(0, ...all.map((d) => d.order + 1)),
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+  };
+  await db.customFieldDefs.add(def);
+  return def;
+}
+
+/** Masque un champ (les valeurs déjà saisies restent dans les fiches et les exports). */
+export async function removeCustomFieldDef(id: string, db: FilaTrackDB = getDb()): Promise<void> {
+  await db.customFieldDefs.update(id, { deletedAt: nowIso(), updatedAt: nowIso() });
+}
+
+export async function moveCustomFieldDef(
+  id: string,
+  delta: -1 | 1,
+  db: FilaTrackDB = getDb(),
+): Promise<void> {
+  await db.transaction('rw', db.customFieldDefs, async () => {
+    const cur = await db.customFieldDefs.get(id);
+    if (!cur) return;
+    const list = (await db.customFieldDefs.where('entity').equals(cur.entity).toArray())
+      .filter((d) => !d.deletedAt)
+      .sort((a, b) => a.order - b.order);
+    const i = list.findIndex((d) => d.id === id);
+    const j = i + delta;
+    if (j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j]!, list[i]!];
+    const now = nowIso();
+    await Promise.all(list.map((d, k) => db.customFieldDefs.update(d.id, { order: k, updatedAt: now })));
+  });
+}
+
+/* ---------------------------- Vues enregistrées ---------------------------- */
+
+export async function saveView(
+  input: Pick<SavedView, 'name' | 'entity' | 'state'> & { id?: string },
+  db: FilaTrackDB = getDb(),
+): Promise<SavedView> {
+  const name = input.name.trim();
+  if (!name) throw new Error('Nomme la vue.');
+  const now = nowIso();
+  const existing =
+    (input.id ? await db.savedViews.get(input.id) : undefined) ??
+    (await db.savedViews.toArray()).find(
+      (v) => !v.deletedAt && v.entity === input.entity && normalizeText(v.name) === normalizeText(name),
+    );
+  const view: SavedView = existing
+    ? { ...existing, name, state: input.state, updatedAt: now }
+    : {
+        id: newId(),
+        name,
+        entity: input.entity,
+        state: input.state,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      };
+  await db.savedViews.put(view);
+  return view;
+}
+
+export async function removeView(id: string, db: FilaTrackDB = getDb()): Promise<void> {
+  await db.savedViews.update(id, { deletedAt: nowIso(), updatedAt: nowIso() });
 }

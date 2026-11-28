@@ -27,6 +27,8 @@
   --border: oklch(0.9 0.005 260);
   --input: oklch(0.85 0.005 260);
   --ring: oklch(0.55 0.14 155);
+  /* Série unique des graphiques (validée 3:1 sur la surface claire). */
+  --chart-1: #257de0;
 }
 
 .dark {
@@ -54,6 +56,7 @@
   --border: oklch(0.3 0.01 260);
   --input: oklch(0.36 0.01 260);
   --ring: oklch(0.72 0.15 155);
+  --chart-1: #338ced;
 }
 
 @theme inline {
@@ -81,6 +84,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 

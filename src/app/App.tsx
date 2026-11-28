@@ -22,6 +22,32 @@ const WeighPage = lazy(() => import('@/features/weighing/WeighPage').then((m) =>
 const JournalPage = lazy(() =>
   import('@/features/journal/JournalPage').then((m) => ({ default: m.JournalPage })),
 );
+const DashboardPage = lazy(() =>
+  import('@/features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })),
+);
+const ProjectsPage = lazy(() =>
+  import('@/features/projects/ProjectsPage').then((m) => ({ default: m.ProjectsPage })),
+);
+const AlertsPage = lazy(() =>
+  import('@/features/alerts/AlertsPage').then((m) => ({ default: m.AlertsPage })),
+);
+const ShoppingPage = lazy(() =>
+  import('@/features/shopping/ShoppingPage').then((m) => ({ default: m.ShoppingPage })),
+);
+const ProjectDetailPage = lazy(() =>
+  import('@/features/projects/ProjectDetailPage').then((m) => ({ default: m.ProjectDetailPage })),
+);
+const ProjectDocumentPage = lazy(() =>
+  import('@/features/projects/ProjectDocumentPage').then((m) => ({ default: m.ProjectDocumentPage })),
+);
+const QuickFeasibilityPage = lazy(() =>
+  import('@/features/projects/QuickFeasibilityPage').then((m) => ({ default: m.QuickFeasibilityPage })),
+);
+const InboxPage = lazy(() => import('@/features/inbox/InboxPage').then((m) => ({ default: m.InboxPage })));
+const LabelsPage = lazy(() =>
+  import('@/features/labels/LabelsPage').then((m) => ({ default: m.LabelsPage })),
+);
+const ScanPage = lazy(() => import('@/features/labels/ScanPage').then((m) => ({ default: m.ScanPage })));
 const SettingsPage = lazy(() =>
   import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 );
@@ -42,8 +68,18 @@ const router = createHashRouter([
       { path: 'ams', element: page(<AmsPage />) },
       { path: 'weigh', element: page(<WeighPage />) },
       { path: 'journal', element: page(<JournalPage />) },
+      { path: 'dashboard', element: page(<DashboardPage />) },
+      { path: 'projects', element: page(<ProjectsPage />) },
+      { path: 'projects/:id', element: page(<ProjectDetailPage />) },
+      { path: 'projects/:id/document', element: page(<ProjectDocumentPage />) },
+      { path: 'feasibility', element: page(<QuickFeasibilityPage />) },
+      { path: 'alerts', element: page(<AlertsPage />) },
+      { path: 'shopping', element: page(<ShoppingPage />) },
       { path: 'catalog', element: page(<CatalogPage />) },
       { path: 'data', element: page(<ImportExportPage />) },
+      { path: 'inbox', element: page(<InboxPage />) },
+      { path: 'labels', element: page(<LabelsPage />) },
+      { path: 'scan', element: page(<ScanPage />) },
       { path: 'settings', element: page(<SettingsPage />) },
       { path: '*', element: <NotFound /> },
     ],

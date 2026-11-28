@@ -1,7 +1,8 @@
 import { ImagePlus } from 'lucide-react';
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
-import { useProjects, useSpools } from '@/app/hooks';
+import { useCustomFields, useProjects, useSpools } from '@/app/hooks';
+import { CustomFieldInput } from '@/components/CustomFieldInput';
 import { shrinkImage } from '@/app/images';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -70,11 +71,15 @@ export function PrintFormDialog({
   const [status, setStatus] = useState<PrintStatus>('success');
   const [failedAt, setFailedAt] = useState('');
   const [projectId, setProjectId] = useState('');
+  const [partId, setPartId] = useState('');
+  const [plateIndex, setPlateIndex] = useState('');
   const [newProject, setNewProject] = useState('');
   const [plate, setPlate] = useState('');
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
   const [notes, setNotes] = useState('');
+  const [custom, setCustom] = useState<Record<string, unknown>>({});
+  const customDefs = useCustomFields('print');
   const [rows, setRows] = useState<UsageRow[]>([]);
   const [applyStock, setApplyStock] = useState(true);
   const [photo, setPhoto] = useState<File | null>(null);
@@ -88,12 +93,15 @@ export function PrintFormDialog({
     setStatus(src?.status ?? 'success');
     setFailedAt(src?.failedAtPercent == null ? '' : String(src.failedAtPercent));
     setProjectId(src?.projectId ?? '');
+    setPartId(src?.projectPartId ?? '');
+    setPlateIndex(src?.plateIndex == null ? '' : String(src.plateIndex));
     setNewProject('');
     setPlate(src?.plate ?? '');
     const d = src?.durationMin;
     setHours(d == null ? '' : String(Math.floor(d / 60)));
     setMinutes(d == null ? '' : String(Math.round(d % 60)));
     setNotes(src?.notes ?? '');
+    setCustom(src?.custom ?? {});
     setRows(rowsFrom(src));
     setApplyStock(
       applyStockDefault ?? (print ? print.stockApplied !== false || print.status === 'planned' : true),
@@ -103,6 +111,8 @@ export function PrintFormDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, print?.id, draft]);
 
+  const selectedProject = projects.find((p) => p.id === projectId);
+  const selectedPart = selectedProject?.parts.find((p) => p.id === partId);
   const pct = status === 'failed' && failedAt.trim() !== '' ? toNumber(failedAt) : null;
   const factor = pct != null && Number.isFinite(pct) ? pct / 100 : 1;
   // En modification, le filament déjà déduit par cette impression redevient disponible.
@@ -140,6 +150,8 @@ export function PrintFormDialog({
       date: date || null,
       durationMin: hours.trim() || minutes.trim() ? Math.round(h * 60 + m) : null,
       projectId: projectId && projectId !== NEW_PROJECT ? projectId : null,
+      projectPartId: projectId && projectId !== NEW_PROJECT && partId ? partId : null,
+      plateIndex: partId && plateIndex ? Number(plateIndex) : null,
       plate: plate.trim() || null,
       status,
       failedAtPercent: status === 'failed' && pct != null && Number.isFinite(pct) ? pct : null,
@@ -152,7 +164,7 @@ export function PrintFormDialog({
       legacyRow: src?.legacyRow ?? null,
       needsReview: false,
       reviewNote: null,
-      custom: src?.custom ?? {},
+      custom,
     };
     const errs = validatePrint(input);
     if (projectId === NEW_PROJECT && !newProject.trim()) errs.push('Nomme le nouveau projet.');
@@ -251,6 +263,41 @@ export function PrintFormDialog({
                 />
               </Field>
             )}
+            {selectedProject && selectedProject.parts.length > 0 && (
+              <Field label="Pièce du projet" htmlFor={id('part')} hint="Pour l’avancement du projet">
+                <NativeSelect
+                  id={id('part')}
+                  value={partId}
+                  onChange={(e) => {
+                    setPartId(e.target.value);
+                    setPlateIndex('');
+                  }}
+                >
+                  <option value="">— Non précisée —</option>
+                  {selectedProject.parts.map((pt) => (
+                    <option key={pt.id} value={pt.id}>
+                      {pt.name}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Field>
+            )}
+            {selectedPart && selectedPart.plates.length > 1 && (
+              <Field label="Plateau de la pièce" htmlFor={id('plateidx')}>
+                <NativeSelect
+                  id={id('plateidx')}
+                  value={plateIndex}
+                  onChange={(e) => setPlateIndex(e.target.value)}
+                >
+                  <option value="">—</option>
+                  {selectedPart.plates.map((pl) => (
+                    <option key={pl.index} value={pl.index}>
+                      {pl.name ?? `Plateau ${pl.index}`}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Field>
+            )}
             <Field label="Plateau" htmlFor={id('plate')}>
               <Input
                 id={id('plate')}
@@ -296,6 +343,19 @@ export function PrintFormDialog({
               className="min-h-16"
             />
           </Field>
+          {customDefs.length > 0 && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {customDefs.map((d) => (
+                <CustomFieldInput
+                  key={d.id}
+                  def={d}
+                  id={id(`cf-${d.key}`)}
+                  value={custom[d.key]}
+                  onChange={(v) => setCustom((c) => ({ ...c, [d.key]: v }))}
+                />
+              ))}
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-4">
             <label className="inline-flex cursor-pointer items-center gap-2 text-sm">

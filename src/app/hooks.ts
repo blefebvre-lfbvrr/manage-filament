@@ -116,3 +116,8 @@ export function useMediaQuery(query: string): boolean {
   }, [query]);
   return matches;
 }
+
+/** Nombre d'impressions du cloud Bambu en attente de validation. */
+export function usePendingBambuCount() {
+  return useLiveQuery(() => getDb().bambuTasks.where('state').equals('pending').count(), [], 0);
+}

@@ -1,6 +1,7 @@
 import { ChevronDown } from 'lucide-react';
 import { useEffect, useId, useMemo, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
+import { CustomFieldInput } from '@/components/CustomFieldInput';
 import { useCatalog, useCustomFields, useLocations, useSettings, useSpools } from '@/app/hooks';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -13,17 +14,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input, NativeSelect, Textarea } from '@/components/ui/input';
-import { Field, Label } from '@/components/ui/label';
+import { Field } from '@/components/ui/label';
 import { createSpools, updateSpool, type SpoolInput } from '@/db/repo';
 import { usualPrice } from '@/lib/catalog';
 import { normalizeHex } from '@/lib/color';
-import {
-  SPOOL_STATUSES,
-  type AmsSlot,
-  type CustomFieldDef,
-  type Spool,
-  type SpoolStatus,
-} from '@/lib/schemas';
+import { SPOOL_STATUSES, type AmsSlot, type Spool, type SpoolStatus } from '@/lib/schemas';
 import { materialFromProductLine, SPOOL_STATUS_LABELS } from '@/lib/spool';
 import { ColorSwatch } from './SpoolBits';
 
@@ -822,55 +817,5 @@ export function SpoolFormDialog({
         </form>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function CustomFieldInput({
-  def,
-  id,
-  value,
-  onChange,
-}: {
-  def: CustomFieldDef;
-  id: string;
-  value: unknown;
-  onChange: (v: unknown) => void;
-}) {
-  if (def.type === 'checkbox') {
-    return (
-      <div className="flex items-center gap-2 pt-6">
-        <Checkbox id={id} checked={value === true} onCheckedChange={(v) => onChange(v === true)} />
-        <Label htmlFor={id}>{def.label}</Label>
-      </div>
-    );
-  }
-  if (def.type === 'list') {
-    return (
-      <Field label={def.label} htmlFor={id}>
-        <NativeSelect id={id} value={s(value)} onChange={(e) => onChange(e.target.value || null)}>
-          <option value="">—</option>
-          {def.options.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </NativeSelect>
-      </Field>
-    );
-  }
-  return (
-    <Field label={def.label} htmlFor={id}>
-      <Input
-        id={id}
-        type={def.type === 'date' ? 'date' : 'text'}
-        inputMode={def.type === 'number' ? 'decimal' : undefined}
-        value={s(value)}
-        onChange={(e) =>
-          onChange(
-            def.type === 'number' ? (n(e.target.value) ?? (e.target.value || null)) : e.target.value || null,
-          )
-        }
-      />
-    </Field>
   );
 }

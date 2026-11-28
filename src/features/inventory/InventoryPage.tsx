@@ -1,7 +1,7 @@
 import type { RowSelectionState, SortingState, VisibilityState } from '@tanstack/react-table';
 import { Archive, Columns3, Copy, LayoutGrid, MapPin, PackageOpen, Plus, Rows3, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import { useCustomFields, useLocations, useLocalState, useSettings, useSpools } from '@/app/hooks';
 import { PageHeader } from '@/app/PageHeader';
@@ -42,6 +42,7 @@ import { SpoolFormDialog } from './SpoolFormDialog';
 import { COLUMN_LABELS, DEFAULT_HIDDEN } from './columns';
 import { SpoolTable } from './SpoolTable';
 import { FiltersBar } from './FiltersBar';
+import { SavedViewsMenu } from './SavedViewsMenu';
 
 export function InventoryPage() {
   const spools = useSpools();
@@ -59,6 +60,14 @@ export function InventoryPage() {
   ]);
   const [selection, setSelection] = useState<RowSelectionState>({});
   const [formOpen, setFormOpen] = useState(false);
+  // « ?new=<jeton> » (palette Ctrl+K) ouvre le formulaire d'ajout, une fois par jeton.
+  const [params] = useSearchParams();
+  const [seenNew, setSeenNew] = useState<string | null>(null);
+  const newToken = params.get('new');
+  if (newToken && newToken !== seenNew) {
+    setSeenNew(newToken);
+    setFormOpen(true);
+  }
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [locationDialog, setLocationDialog] = useState(false);
   const [locationValue, setLocationValue] = useState('');
@@ -158,6 +167,16 @@ export function InventoryPage() {
           />
 
           <div className="flex flex-wrap items-center gap-2">
+            <SavedViewsMenu
+              entity="spool"
+              current={{ filters, sorting, visibility, view }}
+              onApply={(st) => {
+                if (st.filters) setFilters({ ...EMPTY_FILTERS, ...(st.filters as SpoolFilters) });
+                if (Array.isArray(st.sorting)) setSorting(st.sorting as SortingState);
+                if (st.visibility) setVisibility(st.visibility as VisibilityState);
+                if (st.view === 'table' || st.view === 'grid') setView(st.view);
+              }}
+            />
             <div role="group" aria-label="Affichage" className="inline-flex rounded-md border">
               <Button
                 variant={view === 'table' ? 'secondary' : 'ghost'}

@@ -41,7 +41,11 @@ test.describe('FilaTrack', () => {
     await page.getByLabel('Restant (g)').fill('650');
     await page.getByRole('button', { name: 'Enregistrer' }).click();
     await expect(page.getByText('Restant corrigé (-50 g)')).toBeVisible();
-    await page.getByRole('button', { name: 'Annuler' }).first().click();
+    const correction = page
+      .getByRole('listitem')
+      .filter({ hasText: 'Correction' })
+      .filter({ hasText: '-50 g' });
+    await correction.getByRole('button', { name: 'Annuler' }).click();
     await expect(page.getByText('Mouvement annulé.')).toBeVisible();
     await expect(page.getByRole('meter', { name: 'Restant' })).toHaveAttribute('aria-valuenow', '70');
   });
