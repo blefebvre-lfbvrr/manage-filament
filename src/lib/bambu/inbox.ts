@@ -1,6 +1,7 @@
 /** Boîte de réception : proposition de rattachement d'une tâche Bambu aux bobines. Fonctions pures. */
 import { colorDistance } from '../color';
-import type { FilamentUsage, Spool } from '../schemas';
+import { matchProject } from '../projects';
+import type { FilamentUsage, Project, Spool } from '../schemas';
 import { rankCandidates } from '../slicer/match';
 import type { BambuTask } from './tasks';
 
@@ -94,4 +95,22 @@ export function toUsages(
       slicerColor: f.color,
     };
   });
+}
+
+/**
+ * Projet (et pièce) d'une tâche : préfixe [CODE] du titre, puis fichier .3mf déjà dans un projet,
+ * puis nom du projet en tête du nom de fichier. `plateIndex` est repris si la pièce contient ce plateau.
+ */
+export function matchTaskProject(
+  task: Pick<BambuTask, 'title' | 'fileName' | 'plateIndex'>,
+  projects: Project[],
+) {
+  const m =
+    matchProject(task.title, projects) ?? (task.fileName ? matchProject(task.fileName, projects) : null);
+  if (!m) return null;
+  const plateIndex =
+    m.part && task.plateIndex != null && m.part.plates.some((p) => p.index === task.plateIndex)
+      ? task.plateIndex
+      : null;
+  return { ...m, plateIndex };
 }

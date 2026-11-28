@@ -24,7 +24,15 @@ async function askHidden(question: string): Promise<string> {
 
 async function main() {
   console.log('Connexion au cloud Bambu Lab (API non officielle).\n');
-  const regionAnswer = (await rl.question('Région [global/china] (global) : ')).trim().toLowerCase();
+  // « global » couvre le monde entier (Europe comprise) ; « china » seulement les comptes chinois.
+  let regionAnswer = '';
+  for (;;) {
+    regionAnswer = (await rl.question('Région du compte [global/china] (global — Europe comprise) : '))
+      .trim()
+      .toLowerCase();
+    if (['', 'global', 'china'].includes(regionAnswer)) break;
+    console.log('Réponds « global » (ou Entrée) ou « china ».');
+  }
   const region: Region = regionAnswer === 'china' ? 'china' : 'global';
   const email = (await rl.question('Email du compte Bambu Lab : ')).trim();
   const password = await askHidden('Mot de passe : ');
@@ -47,12 +55,12 @@ async function main() {
   const days = result.expiresIn ? Math.round(result.expiresIn / 86400) : null;
   console.log('\n✅ Connecté.' + (days ? ` Le token expire dans environ ${days} jours.` : ''));
   console.log(
-    '\nÀ coller dans GitHub → dépôt manage-filament-data (ou manage-filament) → Settings → Secrets and variables → Actions :',
+    '\nÀ créer dans GitHub → dépôt manage-filament (celui du site, qui contient le workflow) → Settings → Secrets and variables → Actions → New repository secret :',
   );
   console.log(`  BAMBU_REGION = ${region}`);
   console.log(`  BAMBU_TOKEN  = ${result.accessToken}`);
   console.log(
-    '\n⚠️  Ce token donne accès à ton compte Bambu Lab : ne le partage pas, ne le colle dans aucun fichier du dépôt.',
+    '\n⚠️  Ce token donne accès à ton compte Bambu Lab : ne le partage pas (ni dans un chat ni dans une issue), ne le colle dans aucun fichier du dépôt.',
   );
 
   const save = (

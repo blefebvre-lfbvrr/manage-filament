@@ -1,0 +1,129 @@
+{
+  "_comment": "Vraie réponse de GET /v1/user-service/my/tasks?limit=5 (28/11/2026), réduite à 3 tâches et anonymisée : cover, deviceId et URL masqués par bambu-peek, nom de l'imprimante remplacé, modelId/profileId supprimés.",
+  "total": 27,
+  "hits": [
+    {
+      "id": 1496238739,
+      "designId": 0,
+      "designTitle": "",
+      "instanceId": 0,
+      "title": "DeskShelf - Projet complet (35 plateaux)_09 - Cubby 6W x 3H Single",
+      "cover": "<masqué:string>",
+      "status": 2,
+      "failedType": 0,
+      "feedbackStatus": 2,
+      "startTime": "2026-11-28T07:21:24Z",
+      "endTime": "2026-11-28T10:16:29Z",
+      "weight": 179.06,
+      "length": 5908,
+      "costTime": 11908,
+      "plateIndex": 9,
+      "plateName": "",
+      "deviceId": "<masqué:string>",
+      "amsDetailMapping": [
+        {
+          "ams": 0,
+          "sourceColor": "000000FF",
+          "targetColor": "000000FF",
+          "filamentId": "GFA00",
+          "filamentType": "PLA",
+          "targetFilamentType": "",
+          "weight": 179.06,
+          "nozzleId": 1,
+          "amsId": 0,
+          "slotId": 0
+        }
+      ],
+      "mode": "cloud_file",
+      "isDelete": false,
+      "deviceModel": "A1",
+      "deviceName": "Mon-A1",
+      "bedType": "textured_plate",
+      "jobType": 1,
+      "useAms": true,
+      "amsMapping": [0, -1, -1],
+      "amsMapping2": [
+        { "amsId": 0, "slotId": 0 },
+        { "amsId": 255, "slotId": 255 },
+        { "amsId": 255, "slotId": 255 }
+      ],
+      "createClientType": "slicer"
+    },
+    {
+      "id": 1494858185,
+      "title": "DeskShelf - Projet complet (35 plateaux)_08 - 90 Corner Bottom Plate",
+      "cover": "<masqué:string>",
+      "status": 2,
+      "failedType": 0,
+      "startTime": "2026-11-27T21:20:13Z",
+      "endTime": "2026-11-28T00:33:41Z",
+      "weight": 112.91,
+      "length": 3726,
+      "costTime": 7907,
+      "plateIndex": 8,
+      "plateName": "",
+      "deviceId": "<masqué:string>",
+      "amsDetailMapping": [
+        {
+          "ams": 0,
+          "sourceColor": "000000FF",
+          "targetColor": "000000FF",
+          "filamentId": "GFA00",
+          "filamentType": "PLA",
+          "targetFilamentType": "",
+          "weight": 112.91,
+          "nozzleId": 1,
+          "amsId": 0,
+          "slotId": 0
+        }
+      ],
+      "mode": "cloud_file",
+      "deviceModel": "A1",
+      "deviceName": "Mon-A1",
+      "amsMapping": [0, -1, -1],
+      "amsMapping2": [
+        { "amsId": 0, "slotId": 0 },
+        { "amsId": 255, "slotId": 255 },
+        { "amsId": 255, "slotId": 255 }
+      ]
+    },
+    {
+      "id": 1494182507,
+      "title": "DeskShelf - Projet complet (35 plateaux)_07 - 90 Corner Top Plate",
+      "cover": "<masqué:string>",
+      "status": 2,
+      "failedType": 0,
+      "startTime": "2026-11-27T18:05:57Z",
+      "endTime": "2026-11-27T21:11:31Z",
+      "weight": 181.42,
+      "length": 5986,
+      "costTime": 11174,
+      "plateIndex": 7,
+      "plateName": "",
+      "deviceId": "<masqué:string>",
+      "amsDetailMapping": [
+        {
+          "ams": 1,
+          "sourceColor": "000000FF",
+          "targetColor": "000000FF",
+          "filamentId": "GFA00",
+          "filamentType": "PLA",
+          "targetFilamentType": "",
+          "weight": 181.42,
+          "nozzleId": 1,
+          "amsId": 0,
+          "slotId": 0
+        }
+      ],
+      "mode": "cloud_file",
+      "deviceModel": "A1",
+      "deviceName": "Mon-A1",
+      "amsMapping": [1, -1, -1],
+      "amsMapping2": [
+        { "amsId": 0, "slotId": 1 },
+        { "amsId": 255, "slotId": 255 },
+        { "amsId": 255, "slotId": 255 }
+      ]
+    }
+  ]
+}

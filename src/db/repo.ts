@@ -8,9 +8,8 @@ import type { ImportPlan } from '@/lib/excel/plan';
 import { newId, nowIso } from '@/lib/ids';
 import { adjustmentTo, initialMovements, makeMovement, reverseMovement, sumMovements } from '@/lib/movements';
 import type { Alert } from '@/lib/alerts';
-import { canAutoValidate, proposeUsages, toUsages } from '@/lib/bambu/inbox';
+import { canAutoValidate, matchTaskProject, proposeUsages, toUsages } from '@/lib/bambu/inbox';
 import { bambuTaskSchema, type BambuTask } from '@/lib/bambu/tasks';
-import { matchProject } from '@/lib/projects';
 import { looseKey, normalizeText } from '@/lib/text';
 import {
   appSettingsSchema,
@@ -1027,11 +1026,12 @@ export function bambuPrintInput(
 ): PrintInput {
   const status = task.status === 'success' ? 'success' : task.status === 'cancelled' ? 'cancelled' : 'failed';
   return {
-    name: task.title,
+    // Nom du plateau dans Bambu Studio (« Cubby 6W x 3H Single ») plutôt que le titre complet.
+    name: task.plateName ?? task.title,
     date: (task.endTime ?? task.startTime)?.slice(0, 10) ?? null,
     durationMin: task.durationS != null ? Math.round(task.durationS / 60) : null,
     projectId,
-    plate: task.plateName ?? (task.plateIndex != null ? `Plateau ${task.plateIndex}` : null),
+    plate: task.plateIndex != null ? `Plateau ${task.plateIndex}` : null,
     status,
     failedAtPercent: status === 'success' ? null : failedAtPercent,
     estimatedG: task.weightG ?? null,
@@ -1039,7 +1039,12 @@ export function bambuPrintInput(
     energyKwh: null,
     sourceFileId: null,
     photoIds: [],
-    notes: `Synchro cloud Bambu${task.deviceName ? ` (${task.deviceName})` : ''}`,
+    notes: [
+      `Synchro cloud Bambu${task.deviceName ? ` (${task.deviceName})` : ''}`,
+      task.fileName ? `fichier « ${task.fileName} »` : null,
+    ]
+      .filter(Boolean)
+      .join(' · '),
     legacyRow: null,
     needsReview: false,
     reviewNote: null,
@@ -1057,12 +1062,13 @@ export async function autoValidateBambu(db: FilaTrackDB = getDb()): Promise<numb
     const task = bambuTaskSchema.parse(item.task);
     const proposals = proposeUsages(task, spools);
     if (!canAutoValidate(task, proposals)) continue;
-    const m = matchProject(task.title, projects);
+    const m = matchTaskProject(task, projects);
     await validateBambuTask(
       item.id,
       {
         ...bambuPrintInput(task, toUsages(task, proposals), m?.project.id ?? null, null),
         projectPartId: m?.part?.id ?? null,
+        plateIndex: m?.plateIndex ?? null,
       },
       db,
     );

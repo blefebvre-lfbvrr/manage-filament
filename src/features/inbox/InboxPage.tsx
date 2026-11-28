@@ -19,11 +19,10 @@ import {
   setBambuTaskState,
   validateBambuTask,
 } from '@/db/repo';
-import { proposeUsages, toUsages, type UsageProposal } from '@/lib/bambu/inbox';
+import { matchTaskProject, proposeUsages, toUsages, type UsageProposal } from '@/lib/bambu/inbox';
 import { bambuTaskSchema, HEARTBEAT_MS, type BambuTask } from '@/lib/bambu/tasks';
 import { formatDateTime, formatGrams } from '@/lib/format';
 import { formatDuration } from '@/lib/prints';
-import { matchProject } from '@/lib/projects';
 import type { BambuInboxItem, Project, Spool } from '@/lib/schemas';
 import { CloudSyncButton } from '../projects/CloudSyncButton';
 import { ColorSwatch } from '../inventory/SpoolBits';
@@ -173,7 +172,7 @@ function InboxCard({
     return parsed.success ? parsed.data : null;
   }, [item.task]);
   const initial = useMemo(() => (task ? proposeUsages(task, spools) : []), [task, spools]);
-  const match = useMemo(() => (task ? matchProject(task.title, projects) : null), [task, projects]);
+  const match = useMemo(() => (task ? matchTaskProject(task, projects) : null), [task, projects]);
   const [overrides, setOverrides] = useState<Record<number, string | null>>({});
   const [projectId, setProjectId] = useState<string | undefined>(undefined);
   const [percent, setPercent] = useState('');
@@ -204,12 +203,13 @@ function InboxCard({
       return toast.error('Choisis une bobine pour chaque filament (ou ignore l’impression).');
     setBusy(true);
     try {
-      const part = pid && match?.project.id === pid ? (match.part?.id ?? null) : null;
+      const same = Boolean(pid && match?.project.id === pid);
       await validateBambuTask(item.id, {
         ...bambuPrintInput(task, toUsages(task, proposals, pct), pid || null, pct),
-        projectPartId: part,
+        projectPartId: same ? (match?.part?.id ?? null) : null,
+        plateIndex: same ? (match?.plateIndex ?? null) : null,
       });
-      toast.success(`« ${task.title} » validée : stock mis à jour.`);
+      toast.success(`« ${task.plateName ?? task.title} » validée : stock mis à jour.`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Validation impossible.');
     } finally {
@@ -218,13 +218,18 @@ function InboxCard({
   };
 
   return (
-    <Card role="region" className="flex flex-col gap-3 p-4" aria-label={task.title}>
+    <Card role="region" className="flex flex-col gap-3 p-4" aria-label={task.plateName ?? task.title}>
       <div className="flex flex-wrap items-start gap-2">
         <div className="min-w-0 flex-1">
-          <h2 className="font-semibold break-words">{task.title}</h2>
+          <h2 className="font-semibold break-words">{task.plateName ?? task.title}</h2>
+          {task.fileName && (
+            <p className="text-muted-foreground text-sm break-words">
+              {task.fileName}
+              {task.plateIndex != null && ` · plateau ${task.plateIndex}`}
+            </p>
+          )}
           <p className="text-muted-foreground text-sm">
             {formatDateTime(task.endTime ?? task.startTime, settings.dateFormat)}
-            {task.plateName && ` · ${task.plateName}`}
             {task.deviceName && ` · ${task.deviceName}`}
             {task.durationS != null && ` · ${formatDuration(task.durationS / 60)}`}
             {task.weightG != null && ` · ${formatGrams(task.weightG)}`}

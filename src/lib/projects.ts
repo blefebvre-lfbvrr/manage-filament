@@ -372,6 +372,12 @@ export function matchProject(
     );
     if (part) return { project: p, part, reason: `fichier « ${part.fileName} » du projet` };
   }
+  // Le nom commence par le nom d'un projet (« DeskShelf - Projet complet… ») : le plus long l'emporte.
+  const byName = active
+    .filter((p) => looseKey(p.name).length >= 3)
+    .filter((p) => base === looseKey(p.name) || base.startsWith(`${looseKey(p.name)} `))
+    .sort((a, b) => b.name.length - a.name.length)[0];
+  if (byName) return { project: byName, reason: `nom du projet « ${byName.name} »` };
   return null;
 }
 

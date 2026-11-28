@@ -57,7 +57,7 @@ Sur une erreur 401, le workflow ouvre une issue **« Token Bambu expiré »** av
 ## Rattachement dans « À valider »
 
 - **Bobine** : d’abord la bobine placée dans le slot AMS indiqué par le cloud (si le matériau correspond), sinon même type et couleur hex la plus proche. Chaque proposition est marquée « sûr » ou « à vérifier » et reste modifiable.
-- **Projet** : préfixe `[CODE]` du nom de fichier (ex. `[DUPONT] support.3mf`), nom d’un fichier .3mf déjà rattaché à un projet, ou choix manuel.
+- **Projet** : préfixe `[CODE]` du nom de fichier (ex. `[DUPONT] support.3mf`), fichier .3mf déjà rattaché à une pièce d’un projet (le plateau est alors repris), nom du projet en tête du nom de fichier (« DeskShelf - … » → projet « DeskShelf »), ou choix manuel.
 - **Échec ou annulation** : l’application demande l’avancement au moment de l’arrêt et déduit le filament prévu × ce pourcentage.
 - **Validation automatique** (option) : seulement pour les impressions réussies dont toutes les bobines sont sûres.
 
@@ -73,7 +73,12 @@ Ce script doit tourner sur une machine allumée (PC, Raspberry Pi) : une GitHub 
 
 ## Limites
 
-- **API non officielle** : les noms de champs viennent de projets communautaires et doivent être vérifiés sur ta propre réponse (`npm run bambu-peek`). Les codes de statut (2 = réussie, 3 = échouée, 4 = annulée) sont **à confirmer**.
+- **API non officielle**. Vérifié sur une vraie réponse (A1 + AMS lite, novembre 2026, voir `tests/fixtures/bambu-tasks.json`) :
+  - `status` 2 = réussie ; 3 = échouée et 4 = annulée restent **à confirmer** sur une impression ratée ou annulée ;
+  - `amsDetailMapping[].ams` = slot AMS (0–3), cohérent avec `amsMapping` ; `amsId`/`slotId` du même bloc ne sont pas fiables ;
+  - `weight` en grammes (total et par filament), `length` en **centimètres** ;
+  - `costTime` est l’**estimation** du trancheur : la durée réelle est `endTime − startTime` ;
+  - `title` vaut « `<fichier>_<NN> - <nom du plateau>` » (`plateName` est vide) : FilaTrack en extrait le fichier et le nom du plateau.
 - **Cloudflare** peut bloquer les requêtes venant des serveurs GitHub. Dans ce cas, lance `npm run sync-bambu` en local, ou planifie-le sur un Raspberry Pi.
 - **Mode LAN uniquement** : si l’imprimante n’est pas liée au cloud, l’historique est vide.
 - **Poids des échecs** : le cloud donne le poids prévu, pas le filament réellement extrudé ; d’où la saisie de l’avancement.

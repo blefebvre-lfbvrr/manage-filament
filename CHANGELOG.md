@@ -4,6 +4,20 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), ver
 
 ## [Non publié]
 
+## [1.0.1] — 2026-11-28 — Synchro Bambu vérifiée sur une vraie réponse
+
+### Corrigé
+
+- Durée d’impression : fin − début (le champ `costTime` du cloud est l’estimation du trancheur).
+- Longueur de filament : le cloud la donne en centimètres.
+- Slot AMS lu uniquement dans `ams` (les champs `amsId`/`slotId` du même bloc ne sont pas fiables).
+- `npm run bambu-login` refuse une région inconnue et indique le bon dépôt pour les secrets (`manage-filament`).
+
+### Ajouté
+
+- Nom du fichier et nom du plateau extraits du titre (« fichier_NN - plateau ») : l’impression prend le nom du plateau, le projet est reconnu par son nom ou par le .3mf d’une pièce (plateau repris).
+- Réponse réelle anonymisée dans `tests/fixtures/bambu-tasks.json`, avec ses tests.
+
 ## [1.0.0] — 2026-11-28 — Phase 8 : personnalisation
 
 ### Ajouté

@@ -25,6 +25,8 @@ export const bambuTaskSchema = z.object({
   id: z.string().min(1),
   title: z.string().default(''),
   plateName: z.string().nullable().optional(),
+  /** Nom du fichier .3mf, extrait du titre « <fichier>_<NN> - <plateau> ». */
+  fileName: z.string().nullable().optional(),
   plateIndex: z.number().nullable().optional(),
   deviceName: z.string().nullable().optional(),
   deviceModel: z.string().nullable().optional(),
@@ -58,8 +60,8 @@ const num = (v: unknown) => {
 };
 
 /**
- * Statut numérique du cloud. Correspondance d'après la communauté, À CONFIRMER sur une vraie réponse :
- * 1 en cours, 2 réussie, 3 ratée, 4 annulée. Un statut texte est aussi accepté.
+ * Statut numérique du cloud : 2 = réussie (vérifié sur une vraie réponse) ; d'après la communauté,
+ * À CONFIRMER : 1 en cours, 3 ratée, 4 annulée. Un statut texte est aussi accepté.
  */
 export function mapStatus(raw: unknown): BambuTask['status'] {
   if (typeof raw === 'string') {
@@ -93,7 +95,9 @@ function toIso(v: unknown): string | null {
 }
 
 export function normalizeFilament(raw: Raw): BambuFilament {
-  const slotRaw = num(raw.ams ?? raw.amsId ?? raw.slot ?? raw.trayId);
+  // « ams » = index global du plateau AMS (0–3 pour l'AMS lite), cohérent avec amsMapping.
+  // Les champs amsId / slotId du même bloc ne sont pas fiables (0/0 même quand le slot est 1).
+  const slotRaw = num(raw.ams ?? raw.slot ?? raw.trayId);
   // 254/255 : bobine externe dans les rapports Bambu.
   const slot = slotRaw === null || slotRaw < 0 || slotRaw > 15 ? null : slotRaw;
   return {
@@ -103,6 +107,19 @@ export function normalizeFilament(raw: Raw): BambuFilament {
     filamentId: str(raw.filamentId ?? raw.trayInfoIdx),
     grams: Math.max(0, num(raw.weight ?? raw.usedG ?? raw.grams) ?? 0),
   };
+}
+
+/**
+ * Titre d'une tâche envoyée depuis Bambu Studio : « <fichier>_<NN> - <nom du plateau> »
+ * (vérifié sur une vraie réponse ; `plateName` y était vide). Le numéro doit correspondre à plateIndex.
+ */
+export function splitTitle(
+  title: string,
+  plateIndex: number | null,
+): { fileName: string | null; plateName: string | null } {
+  const m = /^(.+?)_(\d{1,3})(?: - (.+))?$/.exec(title.trim());
+  if (!m || (plateIndex !== null && Number(m[2]) !== plateIndex)) return { fileName: null, plateName: null };
+  return { fileName: m[1]!.trim(), plateName: m[3]?.trim() || null };
 }
 
 /** Transforme un élément de « hits » en tâche normalisée (null si inutilisable). */
@@ -122,18 +139,24 @@ export function normalizeTask(raw: unknown): BambuTask | null {
     .filter((f) => f.grams > 0 || f.type);
   const start = toIso(r.startTime ?? r.start_time);
   const end = toIso(r.endTime ?? r.end_time);
+  // costTime est l'estimation du trancheur (vérifié : 7907 s pour une impression réelle de 11608 s) :
+  // la durée réelle est fin − début, l'estimation ne sert qu'à défaut.
   const costTime = num(r.costTime ?? r.cost_time);
-  const durationS =
-    costTime ?? (start && end ? Math.max(0, (Date.parse(end) - Date.parse(start)) / 1000) : null);
+  const durationS = start && end && end > start ? (Date.parse(end) - Date.parse(start)) / 1000 : costTime;
   const weightG = num(r.weight);
   // Pas de détail AMS : un seul filament « inconnu » portant le poids total.
   if (!filaments.length && weightG)
     filaments.push({ slot: null, type: '', color: null, filamentId: null, grams: weightG });
+  const title = str(r.title ?? r.designTitle ?? r.modelName) ?? `Impression ${id}`;
+  const plateIndex = num(r.plateIndex);
+  const parsed = splitTitle(title, plateIndex);
+  const length = num(r.length);
   return {
     id,
-    title: str(r.title ?? r.designTitle ?? r.modelName) ?? `Impression ${id}`,
-    plateName: str(r.plateName),
-    plateIndex: num(r.plateIndex),
+    title,
+    plateName: str(r.plateName) ?? parsed.plateName,
+    fileName: parsed.fileName,
+    plateIndex,
     deviceName: str(r.deviceName),
     deviceModel: str(r.deviceModel),
     startTime: start,
@@ -142,7 +165,8 @@ export function normalizeTask(raw: unknown): BambuTask | null {
     status: mapStatus(r.status),
     statusRaw: typeof r.status === 'number' || typeof r.status === 'string' ? r.status : null,
     weightG,
-    lengthMm: num(r.length),
+    // « length » est en centimètres (vérifié : 5908 pour 179 g de PLA, soit ≈ 59 m).
+    lengthMm: length === null ? null : length * 10,
     filaments,
   };
 }
