@@ -66,19 +66,22 @@ Une impression contient :
 | Table                                       | Contenu                                                                         |
 | ------------------------------------------- | ------------------------------------------------------------------------------- |
 | `weighings`                                 | historique des pesées : brut, tare, net                                         |
-| `projects`                                  | projets : nom, budget, archivé                                                  |
+| `projects`                                  | projets complets : pièces, statut, réservations, prix (voir docs/projets.md)    |
+| `contacts`                                  | personnes pour qui l’on imprime                                                 |
+| `shoppingItems`                             | liste de courses                                                                |
+| `bambuTasks`                                | impressions reçues du cloud Bambu : en attente, validée (→ impression), ignorée |
 | `purchases`                                 | commandes : magasin, numéro, date, port, bobines                                |
 | `locations`                                 | lieux de rangement connus                                                       |
 | `brands`, `products`, `colors`              | catalogue                                                                       |
 | `customFieldDefs`                           | définition des champs personnalisés (texte, nombre, date, liste, case à cocher) |
-| `savedViews`, `alertRules`, `notifications` | phases 4 et 6                                                                   |
+| `savedViews`, `alertRules`, `notifications` | vues enregistrées, règles d’alerte, notifications                               |
 | `importMappings`                            | correspondances de colonnes mémorisées, par signature d’en-têtes                |
 | `attachments`                               | photos et fichiers (Blob ; data URL dans les sauvegardes)                       |
 | `settings`                                  | paramètres de l’application                                                     |
 
 ## Migrations
 
-`DB_VERSION` (dans `src/db/db.ts`) est la version courante (3 : contacts et projets complets ; 2 : `shoppingItems` — voir `src/db/migration.test.ts`). Pour faire évoluer le schéma :
+`DB_VERSION` (dans `src/db/db.ts`) est la version courante (4 : `bambuTasks` ; 3 : contacts et projets complets ; 2 : `shoppingItems` — voir `src/db/migration.test.ts`). Pour faire évoluer le schéma :
 
 1. **Ne jamais modifier** un bloc `this.version(n)` existant.
 2. Ajouter `this.version(n + 1).stores({...})`, avec si besoin `.upgrade(tx => …)` pour transformer les données existantes.

@@ -169,15 +169,11 @@ Chaque push sur `main` déclenche `.github/workflows/deploy.yml`, qui lance les 
 
 `ci.yml` exécute le lint, le formatage, la vérification des types, les tests avec couverture, le build et les tests Playwright sur chaque push et chaque pull request.
 
-## Synchronisation cloud Bambu Lab (phase 6, à venir)
+## Synchronisation cloud Bambu Lab (facultative)
 
-Un script `/sync-bambu`, lancé par une GitHub Action planifiée, récupérera l’historique des impressions de ton compte Bambu Lab via l’API cloud **non officielle**. Les résultats seront écrits dans le dépôt privé et proposés dans une boîte de réception « À valider ».
+Une GitHub Action planifiée (toutes les 30 min) récupère l’historique des impressions de ton compte Bambu Lab via l’API cloud **non officielle**, et l’écrit dans le dépôt privé `manage-filament-data`. FilaTrack le récupère lors de la synchro et le propose dans **« À valider »** : bobine proposée par slot AMS puis par couleur, projet rattaché par préfixe `[CODE]`, échecs au prorata. Le stock n’est déduit qu’à la validation, une seule fois par impression. Un suivi temps réel MQTT est disponible en option (`npm run bambu-live`).
 
-Limites :
-
-- cette API peut être modifiée ou bloquée par Bambu Lab sans préavis ;
-- le % restant RFID n’existe que pour les bobines Bambu ;
-- FilaTrack reste entièrement utilisable sans cette synchro.
+Mise en place, secrets à créer et **limites** (API non officielle, blocage Cloudflare possible, token de 3 mois…) : voir [sync-bambu/README.md](sync-bambu/README.md).
 
 ## Feuille de route
 
@@ -189,7 +185,7 @@ Limites :
   - pièces `.3mf`, avancement, faisabilité, réservations, liste de commande ;
   - coûts, prix, devis ;
   - stockage dans le dépôt privé.
-- [ ] **Phase 6 — Synchro cloud Bambu** :
+- [x] **Phase 6 — Synchro cloud Bambu** :
   - script et GitHub Action ;
   - boîte de réception « À valider » ;
   - rattachement aux projets ;

@@ -72,7 +72,7 @@ export async function syncOnce(opts: {
   return { fetched: incoming.length, added, updated, total: tasks.length };
 }
 
-async function main() {
+export async function main() {
   const local = loadSecrets();
   const bambuToken = process.env.BAMBU_TOKEN || local?.token;
   const repoToken = process.env.DATA_REPO_TOKEN || process.env.GITHUB_TOKEN;

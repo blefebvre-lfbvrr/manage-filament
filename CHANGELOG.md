@@ -4,6 +4,26 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), ver
 
 ## [Non publié]
 
+## [0.6.0] — 2026-11-28 — Phase 6 : synchro cloud Bambu Lab
+
+### Ajouté
+
+- `npm run bambu-login` (email, code par email ou TFA) et `npm run bambu-peek` (5 dernières impressions brutes, masquées).
+- `npm run sync-bambu` et la GitHub Action « Synchro Bambu Lab » (toutes les 30 min et à la demande) : historique normalisé (schéma zod partagé) écrit dans `bambu/prints.json` du dépôt privé, dédoublonné par id ; issue « Token Bambu expiré » ouverte sur une erreur 401.
+- Boîte de réception « À valider » :
+  - bobine proposée par slot AMS puis par type et couleur, marquée « sûr » ou « à vérifier » ;
+  - projet rattaché par préfixe `[CODE]` ou fichier connu ;
+  - échecs déduits au prorata de l’avancement saisi ;
+  - validation automatique optionnelle ; ignorer / remettre à valider ;
+  - jamais deux déductions pour la même impression.
+- « Dernière synchro il y a X » et alerte si la synchro s’arrête ; badge du nombre d’impressions à valider dans la navigation.
+- `npm run bambu-live` : suivi temps réel MQTT (facultatif), avec chien de garde et reconnexion.
+- Exemples d’impressions à valider dans le mode démo.
+
+### Modifié
+
+- Base de données en version 4 (table `bambuTasks`), migration automatique.
+
 ## [0.5.0] — 2026-11-28 — Phase 5 : module Projets
 
 ### Ajouté

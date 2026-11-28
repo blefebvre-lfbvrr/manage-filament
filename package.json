@@ -1,7 +1,7 @@
 {
   "name": "filatrack",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "FilaTrack — gestion de stock de filaments pour Bambu Lab A1 Combo",
   "license": "MIT",
   "type": "module",
@@ -22,7 +22,8 @@
     "e2e": "playwright test --trace off",
     "bambu-login": "tsx sync-bambu/login.ts",
     "bambu-peek": "tsx sync-bambu/peek.ts",
-    "sync-bambu": "tsx sync-bambu/sync.ts"
+    "sync-bambu": "tsx sync-bambu/sync.ts",
+    "bambu-live": "tsx sync-bambu/live.ts"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.4.1",
@@ -72,6 +73,7 @@
     "fake-indexeddb": "^6.2.8",
     "globals": "^17.14.0",
     "jsdom": "^26.1.0",
+    "mqtt": "^5.16.1",
     "prettier": "^3.10.1",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4.3.5",
