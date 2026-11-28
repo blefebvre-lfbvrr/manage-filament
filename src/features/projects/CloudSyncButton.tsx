@@ -20,6 +20,11 @@ export async function runSync(silent = false): Promise<void> {
   if (!client) return;
   try {
     const r = await syncCloud(client);
+    if (r.bambuNew)
+      toast.info(
+        `${r.bambuNew} impression(s) Bambu reçue(s)${r.bambuAuto ? `, ${r.bambuAuto} validée(s) automatiquement` : ''}.`,
+        { action: { label: 'Voir', onClick: () => (location.hash = '#/inbox') } },
+      );
     if (r.errors.length) toast.error(`Synchronisation partielle : ${r.errors[0]}`);
     else if (!silent || r.pulled || r.conflicts) {
       const parts = [
@@ -28,7 +33,7 @@ export async function runSync(silent = false): Promise<void> {
         r.files && `${r.files} fichier(s)`,
         r.conflicts && `${r.conflicts} conflit(s) fusionné(s)`,
       ].filter(Boolean);
-      toast.success(parts.length ? `Projets synchronisés : ${parts.join(', ')}.` : 'Projets à jour.');
+      toast.success(parts.length ? `Données synchronisées : ${parts.join(', ')}.` : 'Tout est à jour.');
     }
   } catch (e) {
     toast.error(

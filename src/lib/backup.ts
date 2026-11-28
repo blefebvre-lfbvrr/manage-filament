@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   alertRuleSchema,
   attachmentSchema,
+  bambuInboxSchema,
   catalogBrandSchema,
   catalogColorSchema,
   catalogProductSchema,
@@ -40,6 +41,7 @@ export const TABLE_SCHEMAS = {
   notifications: notificationSchema,
   importMappings: importMappingSchema,
   shoppingItems: shoppingItemSchema,
+  bambuTasks: bambuInboxSchema,
   attachments: attachmentSchema,
   settings: settingRowSchema,
 } as const;

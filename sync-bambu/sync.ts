@@ -15,6 +15,7 @@ import {
   bambuPrintsFileSchema,
   mergeTasks,
   normalizeTasksResponse,
+  HEARTBEAT_MS,
   type BambuPrintsFile,
 } from '../src/lib/bambu/tasks.ts';
 
@@ -28,6 +29,7 @@ export async function syncOnce(opts: {
   branch: string;
   limit: number;
   fetchImpl?: typeof fetch;
+  now?: Date;
 }) {
   const [owner, name] = opts.repo.split('/');
   if (!owner || !name) throw new Error('DATA_REPO doit être de la forme propriétaire/dépôt.');
@@ -39,17 +41,31 @@ export async function syncOnce(opts: {
   );
   const current = await gh.getText(PRINTS_PATH);
   let existing: BambuPrintsFile['tasks'] = [];
+  let prev: BambuPrintsFile | null = null;
   if (current) {
     const parsed = bambuPrintsFileSchema.safeParse(JSON.parse(current.text));
-    if (parsed.success) existing = parsed.data.tasks;
+    if (parsed.success) {
+      prev = parsed.data;
+      existing = parsed.data.tasks;
+    }
   }
   const { tasks, added, updated } = mergeTasks(existing, incoming);
-  if (added || updated || !current) {
-    const file: BambuPrintsFile = { version: 1, updatedAt: new Date().toISOString(), tasks };
+  const now = opts.now ?? new Date();
+  const lastCheck = prev ? Date.parse(prev.checkedAt ?? prev.updatedAt) : 0;
+  const changed = added > 0 || updated > 0 || !prev;
+  if (changed || now.getTime() - lastCheck > HEARTBEAT_MS) {
+    const file: BambuPrintsFile = {
+      version: 1,
+      updatedAt: changed ? now.toISOString() : prev!.updatedAt,
+      checkedAt: now.toISOString(),
+      tasks,
+    };
     await gh.put(
       PRINTS_PATH,
       `${JSON.stringify(file, null, 2)}\n`,
-      `Synchro Bambu : ${added} nouvelle(s), ${updated} mise(s) à jour`,
+      changed
+        ? `Synchro Bambu : ${added} nouvelle(s), ${updated} mise(s) à jour`
+        : 'Synchro Bambu : vérification',
       current?.sha,
     );
   }

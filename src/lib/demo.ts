@@ -5,8 +5,10 @@
 import { buildCatalogSeed, BAMBU_DEFAULT_TARE_G } from './catalog-seed';
 import { initialMovements, makeMovement, roundG } from './movements';
 import { makeProject } from './project-factory';
+import type { BambuTask } from './bambu/tasks';
 import type {
   AmsSlot,
+  BambuInboxItem,
   Contact,
   PartPlate,
   PrintJob,
@@ -30,6 +32,7 @@ export interface DemoData {
   movements: StockMovement[];
   projects: Project[];
   contacts: Contact[];
+  bambuTasks: BambuInboxItem[];
 }
 
 const DEMO_SPOOLS: [
@@ -296,5 +299,50 @@ export function buildDemoData(now = new Date('2026-11-27T12:00:00Z')): DemoData 
   for (const s of spools) {
     s.remainingG = roundG(movements.filter((m) => m.spoolId === s.id).reduce((a, m) => a + m.deltaG, 0));
   }
-  return { spools, prints, movements, projects, contacts };
+  // Impressions « reçues du cloud Bambu », en attente de validation.
+  const hex = (i: number) => spools[i]!.colorHex ?? null;
+  const task = (id: string, title: string, hoursAgo: number, o: Partial<BambuTask>): BambuInboxItem => {
+    const end = new Date(now.getTime() - hoursAgo * 3600_000);
+    return {
+      id,
+      state: 'pending',
+      printId: null,
+      receivedAt: end.toISOString(),
+      decidedAt: null,
+      task: {
+        id,
+        title,
+        plateName: null,
+        plateIndex: 1,
+        deviceName: 'A1 Combo',
+        deviceModel: 'N2S',
+        startTime: new Date(end.getTime() - 5400_000).toISOString(),
+        endTime: end.toISOString(),
+        durationS: 5400,
+        status: 'success',
+        statusRaw: '2',
+        weightG: 31.2,
+        lengthMm: null,
+        filaments: [{ slot: 0, type: 'PLA', color: hex(0), filamentId: 'GFA00', grams: 31.2 }],
+        ...o,
+      } satisfies BambuTask,
+    };
+  };
+  const bambuTasks = [
+    task('demo-bambu-1', 'Support casque v2', 3, {}),
+    task('demo-bambu-2', '[CADEAU] Pot à crayons', 20, {
+      weightG: 58.4,
+      filaments: [
+        { slot: 1, type: 'PLA', color: hex(1), filamentId: 'GFA00', grams: 50.1 },
+        { slot: 2, type: 'PLA', color: hex(2), filamentId: 'GFA00', grams: 8.3 },
+      ],
+    }),
+    task('demo-bambu-3', 'Engrenage PETG', 30, {
+      status: 'failed',
+      statusRaw: '3',
+      weightG: 24,
+      filaments: [{ slot: 3, type: 'PETG', color: hex(3), filamentId: 'GFG02', grams: 24 }],
+    }),
+  ];
+  return { spools, prints, movements, projects, contacts, bambuTasks };
 }

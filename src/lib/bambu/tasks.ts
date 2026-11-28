@@ -41,7 +41,10 @@ export type BambuTask = z.infer<typeof bambuTaskSchema>;
 
 export const bambuPrintsFileSchema = z.object({
   version: z.literal(1),
+  /** Dernière écriture (nouvelle impression ou mise à jour). */
   updatedAt: z.string(),
+  /** Dernière vérification par la synchro (rafraîchi au plus toutes les 6 h sans nouveauté). */
+  checkedAt: z.string().optional(),
   tasks: z.array(bambuTaskSchema),
 });
 export type BambuPrintsFile = z.infer<typeof bambuPrintsFileSchema>;
@@ -172,3 +175,6 @@ export function mergeTasks(
     .slice(0, max);
   return { tasks, added, updated };
 }
+
+/** Intervalle de « battement de cœur » : sans nouveauté, le fichier n'est réécrit que toutes les 6 h. */
+export const HEARTBEAT_MS = 6 * 3600_000;

@@ -15,7 +15,8 @@ import {
 import { nowIso } from '@/lib/ids';
 import { contactSchema, projectSchema } from '@/lib/schemas';
 import { getDb, type FilaTrackDB } from './db';
-import { getSettings, saveSettings } from './repo';
+import { autoValidateBambu, getSettings, importBambuTasks, saveSettings } from './repo';
+import { bambuPrintsFileSchema } from '@/lib/bambu/tasks';
 
 const TOKEN_KEY = 'filatrack:githubToken';
 
@@ -66,6 +67,9 @@ export interface SyncReport {
   pushed: number;
   conflicts: number;
   files: number;
+  /** Nouvelles impressions reçues du cloud Bambu / validées automatiquement. */
+  bambuNew: number;
+  bambuAuto: number;
   errors: string[];
 }
 
@@ -174,11 +178,44 @@ export async function syncCloud(
   db: FilaTrackDB = getDb(),
   now = nowIso(),
 ): Promise<SyncReport> {
-  const report: SyncReport = { pulled: 0, pushed: 0, conflicts: 0, files: 0, errors: [] };
+  const report: SyncReport = {
+    pulled: 0,
+    pushed: 0,
+    conflicts: 0,
+    files: 0,
+    bambuNew: 0,
+    bambuAuto: 0,
+    errors: [],
+  };
   await uploadProjectFiles(client, db, report);
   await syncKind('contacts', client, db, report, now);
   await syncKind('projects', client, db, report, now);
-  const settings = await getSettings(db);
+  let settings = await getSettings(db);
+  // Historique des impressions écrit par la synchro cloud Bambu (GitHub Action).
+  try {
+    const f = await client.getText(PATHS.prints);
+    if (f) {
+      const parsed = bambuPrintsFileSchema.safeParse(JSON.parse(f.text));
+      if (!parsed.success) report.errors.push('bambu/prints.json : contenu invalide');
+      else {
+        report.bambuNew = await importBambuTasks(parsed.data.tasks, db);
+        if (settings.bambu.autoValidate) report.bambuAuto = await autoValidateBambu(db);
+        settings = await saveSettings(
+          {
+            bambu: {
+              ...settings.bambu,
+              lastFileUpdatedAt: parsed.data.updatedAt,
+              lastCheckedAt: parsed.data.checkedAt ?? parsed.data.updatedAt,
+            },
+          },
+          db,
+        );
+      }
+    }
+  } catch (e) {
+    if (e instanceof GitHubError && (e.status === 401 || e.status === 403)) throw e;
+    report.errors.push(`Historique Bambu : ${e instanceof Error ? e.message : 'échec'}`);
+  }
   await saveSettings({ cloud: { ...settings.cloud, lastSyncAt: now } }, db);
   return report;
 }

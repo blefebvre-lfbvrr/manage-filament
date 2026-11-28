@@ -43,6 +43,7 @@ const ProjectDocumentPage = lazy(() =>
 const QuickFeasibilityPage = lazy(() =>
   import('@/features/projects/QuickFeasibilityPage').then((m) => ({ default: m.QuickFeasibilityPage })),
 );
+const InboxPage = lazy(() => import('@/features/inbox/InboxPage').then((m) => ({ default: m.InboxPage })));
 const SettingsPage = lazy(() =>
   import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 );
@@ -72,6 +73,7 @@ const router = createHashRouter([
       { path: 'shopping', element: page(<ShoppingPage />) },
       { path: 'catalog', element: page(<CatalogPage />) },
       { path: 'data', element: page(<ImportExportPage />) },
+      { path: 'inbox', element: page(<InboxPage />) },
       { path: 'settings', element: page(<SettingsPage />) },
       { path: '*', element: <NotFound /> },
     ],

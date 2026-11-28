@@ -61,6 +61,17 @@ describe('synchro Bambu → dépôt de données', () => {
     expect(await syncOnce({ ...opts, fetchImpl: f })).toMatchObject({ added: 0, updated: 0 });
     expect(files.get('bambu/prints.json')!.sha).toBe(sha);
   });
+  it('battement de cœur : sans nouveauté, réécrit checkedAt au plus toutes les 6 h', async () => {
+    const { files, f } = fakes();
+    const t0 = new Date('2026-11-28T00:00:00Z');
+    await syncOnce({ ...opts, fetchImpl: f, now: t0 });
+    const sha = files.get('bambu/prints.json')!.sha;
+    await syncOnce({ ...opts, fetchImpl: f, now: new Date('2026-11-28T05:00:00Z') });
+    expect(files.get('bambu/prints.json')!.sha).toBe(sha);
+    await syncOnce({ ...opts, fetchImpl: f, now: new Date('2026-11-28T07:00:00Z') });
+    const file = JSON.parse(new TextDecoder().decode(fromBase64(files.get('bambu/prints.json')!.content)));
+    expect(file).toMatchObject({ updatedAt: t0.toISOString(), checkedAt: '2026-11-28T07:00:00.000Z' });
+  });
   it('token expiré : erreur 401 remontée', async () => {
     const { f, setBambu } = fakes();
     setBambu(401);

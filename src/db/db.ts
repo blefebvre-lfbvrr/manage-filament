@@ -6,6 +6,7 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type {
   AlertRule,
+  BambuInboxItem,
   AppNotification,
   Attachment,
   CatalogBrand,
@@ -26,7 +27,7 @@ import type {
   Weighing,
 } from '@/lib/schemas';
 
-export const DB_VERSION = 3;
+export const DB_VERSION = 4;
 
 export type DataMode = 'real' | 'demo';
 export const DB_NAMES: Record<DataMode, string> = { real: 'filatrack', demo: 'filatrack-demo' };
@@ -49,6 +50,7 @@ export class FilaTrackDB extends Dexie {
   importMappings!: EntityTable<ImportMapping, 'id'>;
   shoppingItems!: EntityTable<ShoppingItem, 'id'>;
   contacts!: EntityTable<Contact, 'id'>;
+  bambuTasks!: EntityTable<BambuInboxItem, 'id'>;
   attachments!: EntityTable<Attachment, 'id'>;
   settings!: EntityTable<SettingRow, 'key'>;
 
@@ -107,6 +109,8 @@ export class FilaTrackDB extends Dexie {
             p.sync ??= { dirty: true };
           });
       });
+    // Version 4 — synchro cloud Bambu : boîte de réception des impressions.
+    this.version(4).stores({ bambuTasks: 'id, state, receivedAt' });
     // Exemple pour une future version :
     // this.version(2).stores({ spools: '..., nouvelIndex' }).upgrade(tx => tx.table('spools').toCollection().modify(s => { ... }));
   }

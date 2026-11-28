@@ -423,6 +423,17 @@ export const shoppingItemSchema = baseEntity.extend({
 });
 export type ShoppingItem = z.infer<typeof shoppingItemSchema>;
 
+/** Tâche du cloud Bambu reçue dans la boîte de réception « À valider ». */
+export const bambuInboxSchema = z.object({
+  id: z.string().min(1),
+  task: z.unknown(),
+  state: z.enum(['pending', 'validated', 'ignored']).default('pending'),
+  printId: optStr,
+  receivedAt: z.string(),
+  decidedAt: optStr,
+});
+export type BambuInboxItem = z.infer<typeof bambuInboxSchema>;
+
 export const importMappingSchema = baseEntity.extend({
   name: z.string(),
   kind: z.enum(['spools', 'prints']),
@@ -503,6 +514,14 @@ export const appSettingsSchema = z.object({
   shoppingIncludeLow: z.boolean().default(false),
   /** Notifications système du navigateur (en plus du centre de notifications). */
   browserNotifications: z.boolean().default(false),
+  /** Synchro cloud Bambu : validation automatique des impressions dont la correspondance est sûre. */
+  bambu: z
+    .object({
+      autoValidate: z.boolean().default(false),
+      lastFileUpdatedAt: optStr,
+      lastCheckedAt: optStr,
+    })
+    .default({ autoValidate: false }),
   backupReminderDays: z.number().int().nonnegative().default(14),
   lastBackupAt: optStr,
 });

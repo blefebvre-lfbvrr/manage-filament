@@ -7,6 +7,7 @@ import {
   FolderKanban,
   LayoutDashboard,
   History,
+  Inbox,
   Library,
   Menu,
   Package,
@@ -34,7 +35,7 @@ import { getDataMode, getDb } from '@/db/db';
 import { isBackupDue } from '@/lib/backup';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
-import { useSettings } from './hooks';
+import { usePendingBambuCount, useSettings } from './hooks';
 import { useEffect } from 'react';
 import { applyTheme } from './theme';
 
@@ -43,6 +44,7 @@ const NAV = [
   { to: '/ams', label: 'AMS', icon: SquareStack, mobile: true },
   { to: '/prints', label: 'Impressions', icon: Printer, mobile: true },
   { to: '/weigh', label: 'Pesée', icon: Scale, mobile: true },
+  { to: '/inbox', label: 'À valider', icon: Inbox },
   { to: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
   { to: '/projects', label: 'Projets', icon: FolderKanban },
   { to: '/alerts', label: 'Alertes', icon: BellRing },
@@ -58,6 +60,14 @@ export function Layout() {
   const navigate = useNavigate();
   const demo = getDataMode() === 'demo';
   const spoolCount = useLiveQuery(() => getDb().spools.count(), [], 0);
+  const pending = usePendingBambuCount();
+  const badge = (to: string) =>
+    to === '/inbox' && pending > 0 ? (
+      <span className="bg-primary text-primary-foreground ml-auto rounded-full px-1.5 text-xs tabular-nums">
+        {pending}
+        <span className="sr-only"> à valider</span>
+      </span>
+    ) : null;
   const backupDue =
     isBackupDue(settings.lastBackupAt, settings.backupReminderDays, new Date(), spoolCount > 0) && !demo;
 
@@ -99,6 +109,7 @@ export function Layout() {
             >
               <n.icon className="size-4" aria-hidden />
               {n.label}
+              {badge(n.to)}
             </NavLink>
           ))}
         </nav>
@@ -178,13 +189,19 @@ export function Layout() {
         ))}
         <DropdownMenu>
           <DropdownMenuTrigger className="text-muted-foreground flex flex-col items-center gap-0.5 px-1 py-2 text-[11px] font-medium">
-            <Menu className="size-5" aria-hidden />
-            <span>Plus</span>
+            <span className="relative">
+              <Menu className="size-5" aria-hidden />
+              {pending > 0 && (
+                <span className="bg-primary absolute -top-1 -right-1 size-2 rounded-full" aria-hidden />
+              )}
+            </span>
+            <span>Plus{pending > 0 && <span className="sr-only"> ({pending} à valider)</span>}</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" side="top">
             {NAV.filter((n) => !n.mobile).map((n) => (
               <DropdownMenuItem key={n.to} onSelect={() => navigate(n.to)}>
                 <n.icon aria-hidden /> {n.label}
+                {badge(n.to)}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>

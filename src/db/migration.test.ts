@@ -1,5 +1,5 @@
 import Dexie from 'dexie';
-import { FilaTrackDB } from './db';
+import { DB_VERSION, FilaTrackDB } from './db';
 
 it('migration v1 → v3 : les données existantes sont conservées', async () => {
   const name = 'migration-test';
@@ -14,7 +14,7 @@ it('migration v1 → v3 : les données existantes sont conservées', async () =>
   v1.close();
 
   const db = new FilaTrackDB(name);
-  expect(db.verno).toBe(3);
+  expect(db.verno).toBe(DB_VERSION);
   expect(await db.spools.get('s1')).toMatchObject({ code: 'B01', remainingG: 300 });
   expect((await db.settings.get('app'))?.value).toEqual({ lowThresholdG: 150 });
   await db.shoppingItems.add({
@@ -60,5 +60,18 @@ it('migration v2 → v3 : les projets existants reçoivent statut, pièces et r�
   expect(p2!.status).toBe('idea');
   expect(p3!.status).toBe('done');
   expect(await db.contacts.count()).toBe(0);
+  await db.delete();
+});
+
+it('migration v3 → v4 : ajoute la boîte de réception Bambu sans toucher aux impressions', async () => {
+  const name = 'migration-v3-test';
+  const old = new Dexie(name);
+  old.version(3).stores({ prints: 'id, status, date, projectId, legacyRow, updatedAt, deletedAt' });
+  await old.table('prints').add({ id: 'x1', name: 'Boîte', status: 'success' });
+  old.close();
+  const db = new FilaTrackDB(name);
+  expect(db.verno).toBe(DB_VERSION);
+  expect(await db.prints.get('x1')).toMatchObject({ name: 'Boîte' });
+  expect(await db.bambuTasks.count()).toBe(0);
   await db.delete();
 });

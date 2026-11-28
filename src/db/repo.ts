@@ -8,6 +8,9 @@ import type { ImportPlan } from '@/lib/excel/plan';
 import { newId, nowIso } from '@/lib/ids';
 import { adjustmentTo, initialMovements, makeMovement, reverseMovement, sumMovements } from '@/lib/movements';
 import type { Alert } from '@/lib/alerts';
+import { canAutoValidate, proposeUsages, toUsages } from '@/lib/bambu/inbox';
+import { bambuTaskSchema, type BambuTask } from '@/lib/bambu/tasks';
+import { matchProject } from '@/lib/projects';
 import {
   appSettingsSchema,
   type Contact,
@@ -44,6 +47,7 @@ export async function ensureSeed(db: FilaTrackDB = getDb()): Promise<void> {
       db.movements,
       db.projects,
       db.contacts,
+      db.bambuTasks,
       db.settings,
     ],
     async () => {
@@ -62,6 +66,7 @@ export async function ensureSeed(db: FilaTrackDB = getDb()): Promise<void> {
         await db.movements.bulkPut(demo.movements);
         await db.projects.bulkPut(demo.projects);
         await db.contacts.bulkPut(demo.contacts);
+        await db.bambuTasks.bulkPut(demo.bambuTasks);
       }
     },
   );
@@ -957,4 +962,108 @@ export async function setReservations(
   db: FilaTrackDB = getDb(),
 ): Promise<void> {
   await updateProject(projectId, { reservations: reservations.filter((r) => r.grams > 0) }, db);
+}
+
+/* ---------------------------- Boîte de réception Bambu ---------------------------- */
+
+/** Ajoute les nouvelles tâches du cloud (une tâche déjà connue n'est jamais réimportée ni redéduite). */
+export async function importBambuTasks(tasks: BambuTask[], db: FilaTrackDB = getDb()): Promise<number> {
+  let added = 0;
+  await db.transaction('rw', db.bambuTasks, async () => {
+    for (const t of tasks) {
+      const cur = await db.bambuTasks.get(t.id);
+      if (!cur) {
+        await db.bambuTasks.add({
+          id: t.id,
+          task: t,
+          state: 'pending',
+          printId: null,
+          receivedAt: nowIso(),
+          decidedAt: null,
+        });
+        added++;
+      } else if (cur.state === 'pending') await db.bambuTasks.update(t.id, { task: t });
+    }
+  });
+  return added;
+}
+
+/** Valide une tâche : crée l'impression (et déduit le stock) une seule fois. */
+export async function validateBambuTask(
+  id: string,
+  print: PrintInput,
+  db: FilaTrackDB = getDb(),
+): Promise<PrintJob> {
+  return db.transaction('rw', db.bambuTasks, db.prints, db.movements, db.spools, async () => {
+    const item = await db.bambuTasks.get(id);
+    if (!item) throw new Error('Impression introuvable dans la boîte de réception.');
+    if (item.state === 'validated') throw new Error('Impression déjà validée.');
+    const saved = await savePrint({ ...print, custom: { ...print.custom, bambuTaskId: id } }, {}, db);
+    await db.bambuTasks.update(id, { state: 'validated', printId: saved.id, decidedAt: nowIso() });
+    return saved;
+  });
+}
+
+export async function setBambuTaskState(
+  id: string,
+  state: 'pending' | 'ignored',
+  db: FilaTrackDB = getDb(),
+): Promise<void> {
+  const item = await db.bambuTasks.get(id);
+  if (item?.state === 'validated')
+    throw new Error('Impression déjà validée : supprime l’impression pour l’annuler.');
+  await db.bambuTasks.update(id, { state, decidedAt: state === 'ignored' ? nowIso() : null });
+}
+
+/** Construit l'impression proposée pour une tâche du cloud. */
+export function bambuPrintInput(
+  task: BambuTask,
+  usages: PrintInput['usages'],
+  projectId: string | null,
+  failedAtPercent: number | null,
+): PrintInput {
+  const status = task.status === 'success' ? 'success' : task.status === 'cancelled' ? 'cancelled' : 'failed';
+  return {
+    name: task.title,
+    date: (task.endTime ?? task.startTime)?.slice(0, 10) ?? null,
+    durationMin: task.durationS != null ? Math.round(task.durationS / 60) : null,
+    projectId,
+    plate: task.plateName ?? (task.plateIndex != null ? `Plateau ${task.plateIndex}` : null),
+    status,
+    failedAtPercent: status === 'success' ? null : failedAtPercent,
+    estimatedG: task.weightG ?? null,
+    usages,
+    energyKwh: null,
+    sourceFileId: null,
+    photoIds: [],
+    notes: `Synchro cloud Bambu${task.deviceName ? ` (${task.deviceName})` : ''}`,
+    legacyRow: null,
+    needsReview: false,
+    reviewNote: null,
+    custom: {},
+  };
+}
+
+/** Valide automatiquement les tâches réussies dont toutes les bobines sont certaines. */
+export async function autoValidateBambu(db: FilaTrackDB = getDb()): Promise<number> {
+  const pending = await db.bambuTasks.where('state').equals('pending').toArray();
+  const spools = (await db.spools.toArray()).filter((s) => !s.deletedAt);
+  const projects = await db.projects.toArray();
+  let n = 0;
+  for (const item of pending) {
+    const task = bambuTaskSchema.parse(item.task);
+    const proposals = proposeUsages(task, spools);
+    if (!canAutoValidate(task, proposals)) continue;
+    const m = matchProject(task.title, projects);
+    await validateBambuTask(
+      item.id,
+      {
+        ...bambuPrintInput(task, toUsages(task, proposals), m?.project.id ?? null, null),
+        projectPartId: m?.part?.id ?? null,
+      },
+      db,
+    );
+    n++;
+  }
+  return n;
 }
