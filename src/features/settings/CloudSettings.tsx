@@ -133,6 +133,14 @@ export function CloudSettings() {
               <Switch id="gh-auto" checked={c.autoSync} onCheckedChange={(v) => void save({ autoSync: v })} />
               <Label htmlFor="gh-auto">Synchroniser à l’ouverture</Label>
             </div>
+            <div className="flex w-full items-start gap-2">
+              <Switch id="gh-all" checked={c.syncAll} onCheckedChange={(v) => void save({ syncAll: v })} />
+              <Label htmlFor="gh-all" className="leading-snug font-normal">
+                Synchroniser <strong>toutes les données</strong> (bobines, mouvements, impressions, pesées,
+                catalogue, alertes, courses, champs et vues), pour utiliser FilaTrack sur plusieurs appareils.
+                Les photos restent sur chaque appareil.
+              </Label>
+            </div>
           </div>
         )}
         <details className="bg-muted rounded-md p-3 text-sm">

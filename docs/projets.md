@@ -63,8 +63,19 @@ Dépôt `blefebvre-lfbvrr/manage-filament-data` (réglable). Structure :
 projects/<id>.json    un fichier par projet
 contacts/<id>.json    un fichier par contact
 files/<projet>/<pièce>-<nom>.3mf   fichiers ≤ 10 Mo (au-delà : métadonnées seules)
+bambu/prints.json     historique du cloud Bambu (écrit par la GitHub Action)
+data/<table>.json     option « toutes les données » : bobines, mouvements, impressions…
 ```
 
 - **Hors ligne d’abord** : chaque modification est enregistrée localement et marquée « à envoyer ». La synchronisation se fait à l’ouverture (option) ou avec le bouton _Synchroniser_.
 - **Conflits** (modifié sur deux appareils) : la version la plus récemment modifiée gagne. L’autre est conservée dans l’**historique** du projet (10 dernières versions) : rien n’est perdu.
 - **Token** : token GitHub à grain fin, limité à ce dépôt, avec _Contents : lecture et écriture_. Il est stocké uniquement dans le navigateur (localStorage), jamais dans la base, les sauvegardes ou le code.
+
+### Option « toutes les données »
+
+Paramètres → Synchronisation → _Synchroniser toutes les données_. Chaque table (bobines, mouvements, impressions, pesées, catalogue, achats, emplacements, alertes, courses, champs personnalisés, vues, boîte « À valider ») est un fichier `data/<table>.json`, une ligne par enregistrement.
+
+- Fusion **enregistrement par enregistrement** : le plus récemment modifié gagne ; les suppressions sont des marques (`deletedAt`), donc rien ne réapparaît.
+- Les mouvements de stock de tous les appareils sont conservés, et le **restant de chaque bobine est recalculé** à partir d’eux : deux impressions saisies sur deux appareils sont bien déduites toutes les deux.
+- Une impression du cloud Bambu validée sur un appareil apparaît validée sur les autres. Si elle est validée sur deux appareils **avant** qu’ils se synchronisent, elle est déduite deux fois : valide-la sur un seul appareil, ou synchronise d’abord.
+- Les photos et les paramètres d’affichage restent propres à chaque appareil. Le dépôt garde l’historique git de chaque table.

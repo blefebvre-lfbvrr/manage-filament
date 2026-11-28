@@ -1,7 +1,8 @@
 import { ImagePlus } from 'lucide-react';
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
-import { useProjects, useSpools } from '@/app/hooks';
+import { useCustomFields, useProjects, useSpools } from '@/app/hooks';
+import { CustomFieldInput } from '@/components/CustomFieldInput';
 import { shrinkImage } from '@/app/images';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -77,6 +78,8 @@ export function PrintFormDialog({
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
   const [notes, setNotes] = useState('');
+  const [custom, setCustom] = useState<Record<string, unknown>>({});
+  const customDefs = useCustomFields('print');
   const [rows, setRows] = useState<UsageRow[]>([]);
   const [applyStock, setApplyStock] = useState(true);
   const [photo, setPhoto] = useState<File | null>(null);
@@ -98,6 +101,7 @@ export function PrintFormDialog({
     setHours(d == null ? '' : String(Math.floor(d / 60)));
     setMinutes(d == null ? '' : String(Math.round(d % 60)));
     setNotes(src?.notes ?? '');
+    setCustom(src?.custom ?? {});
     setRows(rowsFrom(src));
     setApplyStock(
       applyStockDefault ?? (print ? print.stockApplied !== false || print.status === 'planned' : true),
@@ -160,7 +164,7 @@ export function PrintFormDialog({
       legacyRow: src?.legacyRow ?? null,
       needsReview: false,
       reviewNote: null,
-      custom: src?.custom ?? {},
+      custom,
     };
     const errs = validatePrint(input);
     if (projectId === NEW_PROJECT && !newProject.trim()) errs.push('Nomme le nouveau projet.');
@@ -339,6 +343,19 @@ export function PrintFormDialog({
               className="min-h-16"
             />
           </Field>
+          {customDefs.length > 0 && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {customDefs.map((d) => (
+                <CustomFieldInput
+                  key={d.id}
+                  def={d}
+                  id={id(`cf-${d.key}`)}
+                  value={custom[d.key]}
+                  onChange={(v) => setCustom((c) => ({ ...c, [d.key]: v }))}
+                />
+              ))}
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-4">
             <label className="inline-flex cursor-pointer items-center gap-2 text-sm">

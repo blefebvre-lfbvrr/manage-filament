@@ -11,9 +11,12 @@ import type { Alert } from '@/lib/alerts';
 import { canAutoValidate, proposeUsages, toUsages } from '@/lib/bambu/inbox';
 import { bambuTaskSchema, type BambuTask } from '@/lib/bambu/tasks';
 import { matchProject } from '@/lib/projects';
+import { looseKey, normalizeText } from '@/lib/text';
 import {
   appSettingsSchema,
   type Contact,
+  type CustomFieldDef,
+  type SavedView,
   type ProjectPart,
   type AlertRule,
   type ShoppingItem,
@@ -1066,4 +1069,107 @@ export async function autoValidateBambu(db: FilaTrackDB = getDb()): Promise<numb
     n++;
   }
   return n;
+}
+
+/* ---------------------------- Champs personnalisés ---------------------------- */
+
+export type CustomFieldInputDef = Pick<CustomFieldDef, 'entity' | 'label' | 'type' | 'options'> & {
+  id?: string;
+};
+
+/** Crée ou modifie un champ ; la clé (stockée dans `custom`) est dérivée du libellé et ne change plus ensuite. */
+export async function saveCustomFieldDef(
+  input: CustomFieldInputDef,
+  db: FilaTrackDB = getDb(),
+): Promise<CustomFieldDef> {
+  const label = input.label.trim();
+  if (!label) throw new Error('Libellé requis.');
+  const all = (await db.customFieldDefs.toArray()).filter((d) => d.entity === input.entity);
+  const options =
+    input.type === 'list' ? [...new Set(input.options.map((o) => o.trim()).filter(Boolean))] : [];
+  if (input.type === 'list' && !options.length) throw new Error('Ajoute au moins une valeur à la liste.');
+  if (all.some((d) => !d.deletedAt && d.id !== input.id && normalizeText(d.label) === normalizeText(label)))
+    throw new Error('Un champ porte déjà ce nom.');
+  const now = nowIso();
+  const cur = input.id ? await db.customFieldDefs.get(input.id) : undefined;
+  if (cur) {
+    const next = { ...cur, label, type: input.type, options, updatedAt: now };
+    await db.customFieldDefs.put(next);
+    return next;
+  }
+  const base = looseKey(label).replace(/ /g, '_') || 'champ';
+  let key = base;
+  for (let i = 2; all.some((d) => d.key === key); i++) key = `${base}_${i}`;
+  const def: CustomFieldDef = {
+    id: newId(),
+    entity: input.entity,
+    key,
+    label,
+    type: input.type,
+    options,
+    order: Math.max(0, ...all.map((d) => d.order + 1)),
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+  };
+  await db.customFieldDefs.add(def);
+  return def;
+}
+
+/** Masque un champ (les valeurs déjà saisies restent dans les fiches et les exports). */
+export async function removeCustomFieldDef(id: string, db: FilaTrackDB = getDb()): Promise<void> {
+  await db.customFieldDefs.update(id, { deletedAt: nowIso(), updatedAt: nowIso() });
+}
+
+export async function moveCustomFieldDef(
+  id: string,
+  delta: -1 | 1,
+  db: FilaTrackDB = getDb(),
+): Promise<void> {
+  await db.transaction('rw', db.customFieldDefs, async () => {
+    const cur = await db.customFieldDefs.get(id);
+    if (!cur) return;
+    const list = (await db.customFieldDefs.where('entity').equals(cur.entity).toArray())
+      .filter((d) => !d.deletedAt)
+      .sort((a, b) => a.order - b.order);
+    const i = list.findIndex((d) => d.id === id);
+    const j = i + delta;
+    if (j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j]!, list[i]!];
+    const now = nowIso();
+    await Promise.all(list.map((d, k) => db.customFieldDefs.update(d.id, { order: k, updatedAt: now })));
+  });
+}
+
+/* ---------------------------- Vues enregistrées ---------------------------- */
+
+export async function saveView(
+  input: Pick<SavedView, 'name' | 'entity' | 'state'> & { id?: string },
+  db: FilaTrackDB = getDb(),
+): Promise<SavedView> {
+  const name = input.name.trim();
+  if (!name) throw new Error('Nomme la vue.');
+  const now = nowIso();
+  const existing =
+    (input.id ? await db.savedViews.get(input.id) : undefined) ??
+    (await db.savedViews.toArray()).find(
+      (v) => !v.deletedAt && v.entity === input.entity && normalizeText(v.name) === normalizeText(name),
+    );
+  const view: SavedView = existing
+    ? { ...existing, name, state: input.state, updatedAt: now }
+    : {
+        id: newId(),
+        name,
+        entity: input.entity,
+        state: input.state,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      };
+  await db.savedViews.put(view);
+  return view;
+}
+
+export async function removeView(id: string, db: FilaTrackDB = getDb()): Promise<void> {
+  await db.savedViews.update(id, { deletedAt: nowIso(), updatedAt: nowIso() });
 }

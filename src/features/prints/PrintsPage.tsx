@@ -11,7 +11,7 @@ import {
   Undo2,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import { useLocalState, usePrints, useProjects, useSettings, useSpools } from '@/app/hooks';
 import { PageHeader } from '@/app/PageHeader';
@@ -53,6 +53,14 @@ export function PrintsPage() {
   const [form, setForm] = useState<FormState>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [toDelete, setToDelete] = useState<PrintJob | null>(null);
+  // « ?new=<jeton> » (palette Ctrl+K) ouvre le formulaire, une fois par jeton.
+  const [params] = useSearchParams();
+  const [seenNew, setSeenNew] = useState<string | null>(null);
+  const newToken = params.get('new');
+  if (newToken && newToken !== seenNew) {
+    setSeenNew(newToken);
+    setForm({});
+  }
 
   const byId = useMemo(() => new Map((spools ?? []).map((s) => [s.id, s])), [spools]);
   const projectName = (id?: string | null) => projects?.find((p) => p.id === id)?.name ?? '';

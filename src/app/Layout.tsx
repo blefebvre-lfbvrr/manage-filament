@@ -1,24 +1,6 @@
-import {
-  BellRing,
-  Boxes,
-  Database,
-  Download,
-  FlaskConical,
-  FolderKanban,
-  LayoutDashboard,
-  History,
-  Inbox,
-  Library,
-  Menu,
-  Package,
-  Printer,
-  ScanLine,
-  Scale,
-  Settings,
-  ShoppingCart,
-  SquareStack,
-  Tags,
-} from 'lucide-react';
+import { Boxes, Download, FlaskConical, Menu, Search } from 'lucide-react';
+import { NAV } from './nav';
+import { CommandPalette, openPalette } from './CommandPalette';
 import { NotificationBell } from './NotificationBell';
 import { getGitHubToken } from '@/db/cloud';
 import { runSync } from '@/features/projects/CloudSyncButton';
@@ -40,24 +22,6 @@ import { cn } from '@/components/ui/cn';
 import { usePendingBambuCount, useSettings } from './hooks';
 import { useEffect } from 'react';
 import { applyTheme } from './theme';
-
-const NAV = [
-  { to: '/', label: 'Inventaire', icon: Package, end: true, mobile: true },
-  { to: '/ams', label: 'AMS', icon: SquareStack, mobile: true },
-  { to: '/prints', label: 'Impressions', icon: Printer, mobile: true },
-  { to: '/scan', label: 'Scanner', icon: ScanLine, mobile: true },
-  { to: '/weigh', label: 'Pesée', icon: Scale },
-  { to: '/inbox', label: 'À valider', icon: Inbox },
-  { to: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
-  { to: '/projects', label: 'Projets', icon: FolderKanban },
-  { to: '/alerts', label: 'Alertes', icon: BellRing },
-  { to: '/shopping', label: 'Liste de courses', icon: ShoppingCart },
-  { to: '/journal', label: 'Journal', icon: History },
-  { to: '/labels', label: 'Étiquettes', icon: Tags },
-  { to: '/catalog', label: 'Catalogue', icon: Library },
-  { to: '/data', label: 'Import / Export', icon: Database },
-  { to: '/settings', label: 'Paramètres', icon: Settings },
-];
 
 export function Layout() {
   const settings = useSettings();
@@ -96,7 +60,17 @@ export function Layout() {
         <div className="flex items-center gap-2 py-4 pr-2 pl-5">
           <Boxes className="text-primary size-6" aria-hidden />
           <span className="text-lg font-bold">FilaTrack</span>
-          <NotificationBell className="ml-auto" />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="ml-auto"
+            aria-label="Rechercher (Ctrl+K)"
+            aria-keyshortcuts="Control+K"
+            onClick={openPalette}
+          >
+            <Search aria-hidden />
+          </Button>
+          <NotificationBell />
         </div>
         <nav aria-label="Navigation principale" className="flex flex-1 flex-col gap-1 px-3">
           {NAV.map((n) => (
@@ -126,7 +100,17 @@ export function Layout() {
         <header className="bg-background/95 sticky top-0 z-30 flex items-center gap-2 border-b px-4 py-1.5 backdrop-blur md:hidden print:hidden">
           <Boxes className="text-primary size-5" aria-hidden />
           <span className="font-bold">FilaTrack</span>
-          <NotificationBell className="ml-auto" />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="ml-auto"
+            aria-label="Rechercher (Ctrl+K)"
+            aria-keyshortcuts="Control+K"
+            onClick={openPalette}
+          >
+            <Search aria-hidden />
+          </Button>
+          <NotificationBell />
         </header>
         {demo && (
           <div
@@ -211,6 +195,7 @@ export function Layout() {
           </DropdownMenuContent>
         </DropdownMenu>
       </nav>
+      <CommandPalette />
       <Toaster richColors position="top-center" closeButton theme={settings.theme} />
     </div>
   );

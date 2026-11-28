@@ -2,7 +2,7 @@ import { ConflictError, GitHubClient, fromBase64, toBase64 } from '@/lib/cloud/g
 import { decide, resolveConflict, safeFileName, serialize } from '@/lib/cloud/sync';
 import { makeProject } from '@/lib/project-factory';
 import { FilaTrackDB } from './db';
-import { ensureSeed } from './repo';
+import { createSpools, ensureSeed, savePrint, saveSettings, type SpoolInput } from './repo';
 import { syncCloud } from './cloud';
 
 /** Faux dépôt GitHub (API Contents) en mémoire, avec contrôle des sha comme le vrai. */
@@ -199,5 +199,73 @@ describe('synchronisation avec le dépôt', () => {
     const client = new GitHubClient(cfg, gh.fetchImpl);
     await client.put('x.json', '{}', 'm');
     await expect(client.put('x.json', '{}', 'm', 'wrong')).rejects.toBeInstanceOf(ConflictError);
+  });
+});
+
+describe('synchronisation de toutes les données', () => {
+  let a: FilaTrackDB;
+  let b: FilaTrackDB;
+  let n = 0;
+  beforeEach(async () => {
+    a = new FilaTrackDB(`all-a-${++n}`);
+    b = new FilaTrackDB(`all-b-${n}`);
+    for (const db of [a, b]) {
+      await ensureSeed(db);
+      await saveSettings({ cloud: { ...cfg, autoSync: false, syncAll: true } }, db);
+    }
+  });
+  afterEach(async () => {
+    await a.delete();
+    await b.delete();
+  });
+  const spool: SpoolInput = {
+    brand: 'Bambu Lab',
+    productLine: 'PLA Basic',
+    material: 'PLA',
+    colorName: 'Noir',
+    diameterMm: 1.75,
+    initialNetG: 1000,
+    tareG: 250,
+    isRefill: false,
+    hasRfid: true,
+    status: 'opened',
+    tags: [],
+    photoIds: [],
+    custom: {},
+  };
+  const use = (spoolId: string, grams: number, name: string) => ({
+    name,
+    status: 'success' as const,
+    usages: [{ spoolId, grams, role: 'main' as const }],
+    photoIds: [],
+    custom: {},
+  });
+
+  it('deux appareils : bobines, impressions et stock cohérents', async () => {
+    const gh = fakeGitHub();
+    const client = new GitHubClient(cfg, gh.fetchImpl);
+    const [s] = await createSpools(spool, 1, a);
+    await savePrint(use(s!.id, 100, 'Boîte A'), {}, a);
+    const r1 = await syncCloud(client, a, '2026-11-28T01:00:00Z');
+    expect(r1.errors).toEqual([]);
+    expect(r1.tables).toBeGreaterThan(0);
+    expect(gh.files.has('data/spools.json')).toBe(true);
+
+    expect((await syncCloud(client, b, '2026-11-28T01:01:00Z')).records).toBeGreaterThan(0);
+    expect((await b.spools.get(s!.id))!.remainingG).toBe(900);
+    expect(await b.prints.count()).toBe(1);
+
+    // Chaque appareil imprime de son côté avant de se resynchroniser.
+    await savePrint(use(s!.id, 50, 'Clip B'), {}, b);
+    await savePrint(use(s!.id, 20, 'Vis A'), {}, a);
+    await syncCloud(client, b, '2026-11-28T02:00:00Z');
+    await syncCloud(client, a, '2026-11-28T02:01:00Z');
+    await syncCloud(client, b, '2026-11-28T02:02:00Z');
+    for (const db of [a, b]) {
+      expect((await db.spools.get(s!.id))!.remainingG).toBe(830);
+      expect(await db.prints.count()).toBe(3);
+    }
+    const again = await syncCloud(client, a, '2026-11-28T03:00:00Z');
+    expect(again).toMatchObject({ records: 0, tables: 0, errors: [] });
   });
 });

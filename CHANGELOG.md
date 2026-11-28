@@ -4,6 +4,15 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), ver
 
 ## [Non publié]
 
+## [1.0.0] — 2026-11-28 — Phase 8 : personnalisation
+
+### Ajouté
+
+- Palette de commandes `Ctrl+K` / ⌘K : pages, actions, bobines, projets, impressions.
+- Gestion des champs personnalisés (bobines et impressions) dans les paramètres ; saisie des champs dans le formulaire d’impression.
+- Vues enregistrées de l’inventaire (filtres, tri, colonnes, affichage).
+- Synchronisation optionnelle de toutes les données avec le dépôt privé (`data/<table>.json`, fusion par enregistrement, plus récent gagnant, restant recalculé depuis les mouvements).
+
 ## [0.7.0] — 2026-11-28 — Phase 7 : étiquettes et application installable
 
 ### Ajouté

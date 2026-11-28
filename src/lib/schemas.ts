@@ -506,8 +506,16 @@ export const appSettingsSchema = z.object({
       branch: z.string().default('main'),
       lastSyncAt: optStr,
       autoSync: z.boolean().default(true),
+      /** Synchroniser aussi l'inventaire, les impressions, le catalogue… (une table = un fichier). */
+      syncAll: z.boolean().default(false),
     })
-    .default({ owner: 'blefebvre-lfbvrr', repo: 'manage-filament-data', branch: 'main', autoSync: true }),
+    .default({
+      owner: 'blefebvre-lfbvrr',
+      repo: 'manage-filament-data',
+      branch: 'main',
+      autoSync: true,
+      syncAll: false,
+    }),
   /** Rappel de séchage des matériaux hygroscopiques ouverts (jours, 0 = désactivé). */
   dryingReminderDays: z.number().int().nonnegative().default(30),
   /** Inclure les bobines « bientôt vides » (pas seulement « à changer » / vides) dans la liste de courses. */

@@ -12,6 +12,7 @@ import { getDataMode, setDataMode } from '@/db/db';
 import { saveSettings } from '@/db/repo';
 import type { AppSettings } from '@/lib/schemas';
 import { CloudSettings } from './CloudSettings';
+import { CustomFieldsSettings } from './CustomFieldsSettings';
 import { InstallCard } from './InstallCard';
 import { ProjectSettings } from './ProjectSettings';
 
@@ -313,6 +314,7 @@ export function SettingsPage() {
 
         <ProjectSettings />
         <CloudSettings />
+        <CustomFieldsSettings />
 
         <Card id="demo" className="lg:col-span-2">
           <CardHeader>

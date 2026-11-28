@@ -13,6 +13,16 @@ import {
   type SyncDoc,
 } from '@/lib/cloud/sync';
 import { nowIso } from '@/lib/ids';
+import {
+  mergeTable,
+  parseTable,
+  serializeTable,
+  SYNC_TABLES,
+  tablePath,
+  type SyncTable,
+} from '@/lib/cloud/tables';
+import { sumMovements } from '@/lib/movements';
+import { TABLE_SCHEMAS } from '@/lib/backup';
 import { contactSchema, projectSchema } from '@/lib/schemas';
 import { getDb, type FilaTrackDB } from './db';
 import { autoValidateBambu, getSettings, importBambuTasks, saveSettings } from './repo';
@@ -70,7 +80,65 @@ export interface SyncReport {
   /** Nouvelles impressions reçues du cloud Bambu / validées automatiquement. */
   bambuNew: number;
   bambuAuto: number;
+  /** Synchro de toutes les données : enregistrements reçus / tables envoyées. */
+  records: number;
+  tables: number;
   errors: string[];
+}
+
+/** Une table : fusion avec data/<table>.json puis envoi si nécessaire (une nouvelle tentative sur conflit). */
+async function syncTable(
+  t: SyncTable,
+  client: GitHubClient,
+  db: FilaTrackDB,
+  report: SyncReport,
+  now: string,
+) {
+  const table = db.table(t);
+  const schema = TABLE_SCHEMAS[t];
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const f = await client.getText(tablePath(t));
+    const remote = f
+      ? parseTable(f.text).flatMap((r) => {
+          const p = schema.safeParse(r);
+          return p.success ? [p.data as { id: string } & Record<string, unknown>] : [];
+        })
+      : null;
+    const local = (await table.toArray()) as ({ id: string } & Record<string, unknown>)[];
+    const m = mergeTable(local, remote);
+    if (m.toLocal.length) {
+      await table.bulkPut(m.toLocal);
+      report.records += m.toLocal.length;
+    }
+    if (t === 'spools' || t === 'movements') await recomputeStock(db);
+    if (!m.pushNeeded) return;
+    const fresh = (await table.toArray()) as ({ id: string } & Record<string, unknown>)[];
+    try {
+      await client.put(
+        tablePath(t),
+        serializeTable(t, mergeTable(fresh, remote).merged, now),
+        `Données : ${t}`,
+        f?.sha,
+      );
+      report.tables++;
+      return;
+    } catch (e) {
+      if (!(e instanceof ConflictError) || attempt === 1) throw e;
+    }
+  }
+}
+
+/** Le restant d'une bobine = somme de ses mouvements (après fusion des mouvements de plusieurs appareils). */
+async function recomputeStock(db: FilaTrackDB) {
+  const movements = await db.movements.toArray();
+  const by = new Map<string, typeof movements>();
+  for (const m of movements) by.set(m.spoolId, [...(by.get(m.spoolId) ?? []), m]);
+  for (const s of await db.spools.toArray()) {
+    const ms = by.get(s.id);
+    if (!ms) continue;
+    const g = sumMovements(ms);
+    if (g !== s.remainingG) await db.spools.update(s.id, { remainingG: g });
+  }
 }
 
 type Kind = 'projects' | 'contacts';
@@ -185,12 +253,25 @@ export async function syncCloud(
     files: 0,
     bambuNew: 0,
     bambuAuto: 0,
+    records: 0,
+    tables: 0,
     errors: [],
   };
   await uploadProjectFiles(client, db, report);
   await syncKind('contacts', client, db, report, now);
   await syncKind('projects', client, db, report, now);
   let settings = await getSettings(db);
+  if (settings.cloud.syncAll) {
+    // Ordre : catalogue, bobines et mouvements avant ce qui en dépend.
+    for (const t of SYNC_TABLES) {
+      try {
+        await syncTable(t, client, db, report, now);
+      } catch (e) {
+        if (e instanceof GitHubError && (e.status === 401 || e.status === 403)) throw e;
+        report.errors.push(`Table ${t} : ${e instanceof Error ? e.message : 'échec'}`);
+      }
+    }
+  }
   // Historique des impressions écrit par la synchro cloud Bambu (GitHub Action).
   try {
     const f = await client.getText(PATHS.prints);

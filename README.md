@@ -110,6 +110,13 @@ _Captures réalisées avec les données de démonstration._
 - Plaquette d’identification à imprimer en 3D (.stl).
 - Application installable (PWA) qui fonctionne hors ligne.
 
+**Personnalisation** (phase 8)
+
+- **Palette de commandes** `Ctrl+K` (ou ⌘K, ou la loupe) : pages, actions (nouvelle bobine, nouvelle impression, scanner, synchroniser, thème…), bobines, projets et impressions.
+- **Champs personnalisés** pour les bobines et les impressions (texte, nombre, date, liste, case à cocher) : création, renommage, ordre, masquage, dans Paramètres.
+- **Vues enregistrées** de l’inventaire : filtres, tri, colonnes et affichage rappelés en un clic.
+- **Synchronisation de toutes les données** avec le dépôt privé (option) : bobines, mouvements, impressions, pesées, catalogue, alertes, courses, champs et vues, pour utiliser FilaTrack sur plusieurs appareils. Une table = un fichier `data/<table>.json`, fusion enregistrement par enregistrement, restant recalculé à partir des mouvements.
+
 **Données**
 
 - **Import Excel**, détaillé dans [docs/import-excel.md](docs/import-excel.md) :
@@ -203,7 +210,7 @@ Mise en place, secrets à créer et **limites** (API non officielle, blocage Clo
   - rattachement aux projets ;
   - option MQTT temps réel.
 - [x] **Phase 7 — Étiquettes** : QR codes, planches A4, scan par caméra, PWA complète, plaquette STL.
-- [ ] **Phase 8 — Personnalisation** : gestion des champs personnalisés, vues enregistrées, widgets, palette Ctrl+K, synchronisation de toutes les données.
+- [x] **Phase 8 — Personnalisation** : gestion des champs personnalisés, vues enregistrées, palette Ctrl+K, synchronisation de toutes les données.
 
 ## Documentation
 
