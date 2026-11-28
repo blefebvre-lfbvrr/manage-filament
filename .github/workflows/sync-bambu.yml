@@ -19,14 +19,26 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
+      - name: Secrets configurés ?
+        id: cfg
+        env:
+          BAMBU_TOKEN: ${{ secrets.BAMBU_TOKEN }}
+          DATA_REPO_TOKEN: ${{ secrets.DATA_REPO_TOKEN }}
+        run: |
+          if [ -n "$BAMBU_TOKEN" ] && [ -n "$DATA_REPO_TOKEN" ]; then echo "ok=true" >> "$GITHUB_OUTPUT";
+          else echo "Secrets BAMBU_TOKEN / DATA_REPO_TOKEN absents : synchro non configurée, rien à faire."; fi
       - uses: actions/checkout@v4
+        if: steps.cfg.outputs.ok == 'true'
       - uses: actions/setup-node@v4
+        if: steps.cfg.outputs.ok == 'true'
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+        if: steps.cfg.outputs.ok == 'true'
       - name: Synchroniser
         id: sync
+        if: steps.cfg.outputs.ok == 'true'
         run: |
           set +e
           npm run --silent sync-bambu
