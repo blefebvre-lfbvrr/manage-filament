@@ -1,0 +1,55 @@
+name: Synchro Bambu Lab
+
+# Récupère l'historique des impressions du cloud Bambu (API non officielle) toutes les 30 minutes
+# et l'écrit dans le dépôt privé de données. Rien n'est fait tant que les secrets ne sont pas créés.
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: sync-bambu
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Synchroniser
+        id: sync
+        run: |
+          set +e
+          npm run --silent sync-bambu
+          code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" = "2" ]; then exit 0; fi
+          exit $code
+        env:
+          BAMBU_TOKEN: ${{ secrets.BAMBU_TOKEN }}
+          BAMBU_REGION: ${{ secrets.BAMBU_REGION }}
+          DATA_REPO_TOKEN: ${{ secrets.DATA_REPO_TOKEN }}
+          DATA_REPO: ${{ vars.DATA_REPO || 'blefebvre-lfbvrr/manage-filament-data' }}
+      - name: Signaler un token expiré
+        if: steps.sync.outputs.code == '2'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Token Bambu expiré"
+          if [ -z "$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number')" ]; then
+            gh issue create --title "$title" --body "La synchro automatique des impressions a reçu une erreur 401 du cloud Bambu Lab.
+
+          **Pour la relancer :**
+          1. Sur ton PC, dans le dossier du projet : \`npm run bambu-login\` (email, mot de passe, code reçu par email).
+          2. Copie le nouveau token dans *Settings → Secrets and variables → Actions → BAMBU_TOKEN*.
+          3. Relance le workflow *Synchro Bambu Lab* (onglet Actions → Run workflow), puis ferme cette issue."
+          fi

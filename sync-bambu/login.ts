@@ -6,7 +6,7 @@
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import { login, loginWithCode, loginWithTfa, sendEmailCode, type LoginResult, type Region } from './api.ts';
-import { saveSecrets, SECRETS_FILE } from './secrets.ts';
+import { saveSecrets, secretsFile } from './secrets.ts';
 
 const rl = createInterface({ input: stdin, output: stdout });
 
@@ -57,7 +57,7 @@ async function main() {
 
   const save = (
     await rl.question(
-      `\nL’enregistrer aussi en local (${SECRETS_FILE}, ignoré par git) pour « npm run bambu-peek » ? [o/N] `,
+      `\nL’enregistrer aussi en local (${secretsFile()}, ignoré par git) pour « npm run bambu-peek » ? [o/N] `,
     )
   )
     .trim()

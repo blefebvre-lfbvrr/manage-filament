@@ -10,5 +10,6 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["*.ts"]
+  "include": ["*.ts", "../src/lib/bambu/tasks.ts", "../src/lib/cloud/github.ts"],
+  "exclude": ["*.test.ts"]
 }

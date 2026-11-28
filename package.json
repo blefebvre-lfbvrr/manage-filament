@@ -21,7 +21,8 @@
     "test:coverage": "vitest run --coverage",
     "e2e": "playwright test --trace off",
     "bambu-login": "tsx sync-bambu/login.ts",
-    "bambu-peek": "tsx sync-bambu/peek.ts"
+    "bambu-peek": "tsx sync-bambu/peek.ts",
+    "sync-bambu": "tsx sync-bambu/sync.ts"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.4.1",
