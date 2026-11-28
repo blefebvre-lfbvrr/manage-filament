@@ -82,6 +82,22 @@ _Captures réalisées avec les données de démonstration._
   - bouton « Acheté » qui ajoute les bobines au stock.
 - **Vérification avant impression** : alerte de stock dans la saisie, l’import `.3mf` et la file d’attente.
 
+**Projets** (phase 5)
+
+- Projets **pour moi ou pour des tiers** (contacts réutilisables), statuts personnalisables, échéance, livraison, tags. Détails dans [docs/projets.md](docs/projets.md).
+- **Pièces** depuis des `.3mf` découpés (plusieurs à la fois) ou saisies à la main, avec les quantités. **Avancement** calculé à partir des impressions rattachées.
+- **Analyse de faisabilité** :
+  - besoin avec marges ;
+  - stock disponible, réservations des autres projets déduites ;
+  - bobines identiques et alternatives proches ;
+  - liste de commande ;
+  - durée et date de fin.
+- **« Puis-je imprimer ça ? »** sans créer de projet.
+- **Réservation de bobines** pour un projet ; les réservations sont prises en compte dans les faisabilités.
+- **Coûts** : matière réelle, ratés, électricité, machine, main-d’œuvre. **Prix suggéré** avec marge et arrondi, prix final, marge réelle, paiement. **Devis et récapitulatif** en PDF.
+- Chiffre d’affaires et marge des projets pour des tiers.
+- **Synchronisation** des projets, contacts et `.3mf` dans le dépôt privé `manage-filament-data` : hors ligne d’abord, conflits fusionnés sans perte.
+
 **Données**
 
 - **Import Excel**, détaillé dans [docs/import-excel.md](docs/import-excel.md) :
@@ -153,9 +169,15 @@ Chaque push sur `main` déclenche `.github/workflows/deploy.yml`, qui lance les 
 
 `ci.yml` exécute le lint, le formatage, la vérification des types, les tests avec couverture, le build et les tests Playwright sur chaque push et chaque pull request.
 
-## Pont imprimante (phase 7, optionnel)
+## Synchronisation cloud Bambu Lab (phase 6, à venir)
 
-Le dossier [`bridge/`](bridge/README.md) contiendra un petit script Node.js local. Il écoutera l’imprimante en MQTT (mode LAN) pour créer automatiquement les impressions terminées et suivre les slots AMS. L’application fonctionne parfaitement sans lui.
+Un script `/sync-bambu`, lancé par une GitHub Action planifiée, récupérera l’historique des impressions de ton compte Bambu Lab via l’API cloud **non officielle**. Les résultats seront écrits dans le dépôt privé et proposés dans une boîte de réception « À valider ».
+
+Limites :
+
+- cette API peut être modifiée ou bloquée par Bambu Lab sans préavis ;
+- le % restant RFID n’existe que pour les bobines Bambu ;
+- FilaTrack reste entièrement utilisable sans cette synchro.
 
 ## Feuille de route
 
@@ -163,15 +185,24 @@ Le dossier [`bridge/`](bridge/README.md) contiendra un petit script Node.js loca
 - [x] **Phase 2 — Consommation** : impressions et file d’attente, import `.3mf` / `.gcode`, déductions et annulation, mode pesée, vue AMS, journal global.
 - [x] **Phase 3 — Dashboard et coûts** : KPI, graphiques avec les vraies couleurs, prévision de rupture, projets, électricité.
 - [x] **Phase 4 — Alertes** : seuils par matériau ou couleur, liste de courses, rappels de séchage, vérification avant impression, notifications.
-- [ ] **Phase 5 — Étiquettes** : QR codes, planches A4, scan par caméra, PWA complète, plaquette STL.
-- [ ] **Phase 6 — Personnalisation** : gestion des champs personnalisés, vues enregistrées, widgets, palette Ctrl+K, synchronisation GitHub.
-- [ ] **Phase 7 — Pont MQTT** (optionnel).
+- [x] **Phase 5 — Projets** :
+  - pièces `.3mf`, avancement, faisabilité, réservations, liste de commande ;
+  - coûts, prix, devis ;
+  - stockage dans le dépôt privé.
+- [ ] **Phase 6 — Synchro cloud Bambu** :
+  - script et GitHub Action ;
+  - boîte de réception « À valider » ;
+  - rattachement aux projets ;
+  - option MQTT temps réel.
+- [ ] **Phase 7 — Étiquettes** : QR codes, planches A4, scan par caméra, PWA complète, plaquette STL.
+- [ ] **Phase 8 — Personnalisation** : gestion des champs personnalisés, vues enregistrées, widgets, palette Ctrl+K, synchronisation de toutes les données.
 
 ## Documentation
 
 - [Modèle de données](docs/data-model.md)
 - [Import Excel : règles de correspondance](docs/import-excel.md)
 - [Import des impressions .3mf / .gcode](docs/import-impressions.md)
+- [Module Projets : faisabilité, coûts, synchronisation](docs/projets.md)
 - [CHANGELOG](CHANGELOG.md)
 
 ## Licence

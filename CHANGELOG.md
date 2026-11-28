@@ -4,6 +4,28 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), ver
 
 ## [Non publié]
 
+## [0.5.0] — 2026-11-28 — Phase 5 : module Projets
+
+### Ajouté
+
+- Projets complets :
+  - pour moi ou pour un tiers, contacts réutilisables ;
+  - statuts personnalisables, code de préfixe, échéance, livraison, tags ;
+  - pièces importées depuis des `.3mf` (plusieurs à la fois) ou saisies à la main, avec quantités.
+- Avancement calculé à partir des impressions rattachées à une pièce ou un plateau ; impressions ratées listées à part.
+- Consommation prévue contre réelle, par filament, avec l’écart.
+- Analyse de faisabilité (marges, réservations, bobines identiques, alternatives, changement de bobine, liste de commande, durée et date de fin), aussi en mode rapide « Puis-je imprimer ça ? ».
+- Réservation de bobines par projet.
+- Coûts (matière, ratés, électricité, machine, main-d’œuvre), prix suggéré arrondi, prix final, marge réelle, paiement ; devis et récapitulatif imprimables en PDF ; chiffre d’affaires par mois.
+- Rattachement automatique des impressions importées : préfixe `[CODE]`, ou `.3mf` déjà présent dans un projet.
+- Synchronisation des projets, contacts et `.3mf` avec le dépôt GitHub privé (hors ligne d’abord, conflits fusionnés, historique) ; token stocké uniquement dans le navigateur.
+- Paramètres des projets : marges, coûts horaires, arrondi, heures d’impression par jour.
+
+### Modifié
+
+- Base de données en version 3 (contacts ; statut, pièces, réservations et prix des projets), migration automatique.
+- Le module « pont imprimante » MQTT local est abandonné au profit de la synchro cloud Bambu (phase 6).
+
 ## [0.4.0] — 2026-11-28 — Phase 4 : alertes et réapprovisionnement
 
 ### Ajouté

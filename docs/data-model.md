@@ -55,6 +55,7 @@ Une impression contient :
 - `failedAtPercent`, `estimatedG` (poids du slicer) ;
 - `usages[]` : `{ spoolId, grams, plannedG, lengthM, role: main | relay, amsSlot, slicerType, slicerColor }`. `grams` est la quantité déduite ; `plannedG` la quantité prévue, si l’impression a raté à X % ;
 - `stockApplied` : vrai si la consommation est actuellement déduite du stock ;
+- `projectPartId`, `plateIndex` : pièce et plateau du projet imprimés (avancement) ;
 - `energyKwh`, `sourceFileId`, `photoIds`, `notes`, `custom` ;
 - `legacyRow`, `needsReview` et `reviewNote` pour l’import.
 
@@ -77,7 +78,7 @@ Une impression contient :
 
 ## Migrations
 
-`DB_VERSION` (dans `src/db/db.ts`) est la version courante (2 : ajout de `shoppingItems`, voir `src/db/migration.test.ts`). Pour faire évoluer le schéma :
+`DB_VERSION` (dans `src/db/db.ts`) est la version courante (3 : contacts et projets complets ; 2 : `shoppingItems` — voir `src/db/migration.test.ts`). Pour faire évoluer le schéma :
 
 1. **Ne jamais modifier** un bloc `this.version(n)` existant.
 2. Ajouter `this.version(n + 1).stores({...})`, avec si besoin `.upgrade(tx => …)` pour transformer les données existantes.
