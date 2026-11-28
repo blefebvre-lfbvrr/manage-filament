@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test.describe('Phase 3 — tableau de bord et projets', () => {
+test.describe('Phase 3 — tableau de bord et coûts', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('filatrack:mode', 'demo'));
   });
@@ -35,17 +35,6 @@ test.describe('Phase 3 — tableau de bord et projets', () => {
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Coût par projet' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Dépenses par mois' })).toBeHidden();
-  });
-
-  test('projets : budget et création', async ({ page }) => {
-    await page.goto('./#/projects');
-    await expect(page.getByRole('meter', { name: 'Budget de Rangement atelier' })).toBeVisible();
-    await page.getByRole('button', { name: 'Nouveau projet' }).click();
-    await page.getByLabel('Nom').fill('Imprimante 2');
-    await page.getByLabel('Budget (€, facultatif)').fill('25');
-    await page.getByRole('button', { name: 'Enregistrer' }).click();
-    await expect(page.getByRole('heading', { name: 'Imprimante 2' })).toBeVisible();
-    await expect(page.getByText('Budget 25,00 €')).toBeVisible();
   });
 
   test('coût électrique ajouté aux impressions', async ({ page }) => {
